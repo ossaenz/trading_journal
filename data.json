@@ -1,0 +1,16 @@
+{
+  "active_wheels": [
+    {
+      "symbol": "NVDA",
+      "status": "COVERED_CALL",
+      "assignment_price": 115.00,
+      "shares_held": 100,
+      "total_premium_collected": 1240.00,
+      "legs": [
+        { "type": "CSP", "strike": 110, "premium": 4.50, "status": "EXPIRED_OTM" },
+        { "type": "CSP", "strike": 115, "premium": 3.20, "status": "ASSIGNED" },
+        { "type": "CC", "strike": 125, "premium": 2.10, "status": "OPEN" }
+      ]
+    }
+  ]
+}

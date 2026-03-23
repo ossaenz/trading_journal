@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QuantumWheel | Professional Trading OS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        :root { --bg: #05070a; --card: #0d1117; --accent: #10b981; --border: rgba(255,255,255,0.06); }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: #e2e8f0; overflow-x: hidden; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .glass { background: var(--card); border: 1px solid var(--border); border-radius: 1.5rem; }
+        .active-tab { color: var(--accent); background: rgba(16, 185, 129, 0.08); border-right: 3px solid var(--accent); }
+        .mobile-active-tab { color: var(--accent); }
+        /* Hide scrollbars */
+        ::-webkit-scrollbar { display: none; }
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="md:pl-64">
+
+    <aside class="hidden md:flex fixed left-0 top-0 h-full w-64 bg-[#0d1117] border-r border-white/5 flex-col p-6 z-50">
+        <div class="flex items-center gap-3 mb-10 px-2">
+            <div class="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <i class="fa-solid fa-layer-group text-black text-sm"></i>
+            </div>
+            <span class="text-xl font-bold tracking-tighter uppercase italic">Quantum<span class="text-emerald-500">Wheel</span></span>
+        </div>
+        
+        <nav class="space-y-1 flex-1">
+            <button onclick="showPage('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl text-slate-400 hover:text-white transition group">
+                <i class="fa-solid fa-house text-lg"></i> <span class="font-semibold">Dashboard</span>
+            </button>
+            <button onclick="showPage('journal')" id="nav-journal" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl text-slate-400 hover:text-white transition">
+                <i class="fa-solid fa-book text-lg"></i> <span class="font-semibold">Journal</span>
+            </button>
+            <button onclick="showPage('wheel')" id="nav-wheel" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl text-slate-400 hover:text-white transition">
+                <i class="fa-solid fa-arrows-spin text-lg"></i> <span class="font-semibold">Wheel Engine</span>
+            </button>
+            <button onclick="showPage('settings')" id="nav-settings" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl text-slate-400 hover:text-white transition">
+                <i class="fa-solid fa-sliders text-lg"></i> <span class="font-semibold">Settings</span>
+            </button>
+        </nav>
+
+        <div class="mt-auto p-4 glass bg-emerald-500/5 border-emerald-500/10">
+            <p class="text-[10px] font-bold text-slate-500 uppercase mb-2">Sync Status</p>
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                <span class="text-xs font-bold uppercase tracking-widest text-emerald-500">Connected</span>
+            </div>
+        </div>
+    </aside>
+
+    <div class="max-w-7xl mx-auto p-4 md:p-10 pb-32">
+        
+        <div id="page-dashboard" class="page active">
+            <header class="mb-10">
+                <h1 class="text-3xl font-black tracking-tight mb-2">Portfolio Overview</h1>
+                <div class="flex items-center gap-4">
+                    <span class="text-5xl font-bold font-mono">$142,509<span class="text-slate-700">.32</span></span>
+                    <span class="px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-bold">+12.4% <i class="fa-solid fa-arrow-trend-up ml-1"></i></span>
+                </div>
+            </header>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="glass p-6"><p class="text-[10px] text-slate-500 font-bold uppercase mb-2">Option Premiums</p><p class="text-2xl font-bold">$4,250</p></div>
+                <div class="glass p-6"><p class="text-[10px] text-slate-500 font-bold uppercase mb-2">Total Dividends</p><p class="text-2xl font-bold text-blue-400">$840</p></div>
+                <div class="glass p-6"><p class="text-[10px] text-slate-500 font-bold uppercase mb-2">Avg Win Rate</p><p class="text-2xl font-bold">68.4%</p></div>
+                <div class="glass p-6"><p class="text-[10px] text-slate-500 font-bold uppercase mb-2">Profit Factor</p><p class="text-2xl font-bold">2.14</p></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 glass p-8">
+                    <h3 class="font-bold mb-6">Equity Performance</h3>
+                    <div id="equity-chart"></div>
+                </div>
+                <div class="glass p-8">
+                    <h3 class="font-bold mb-6">Income Mix</h3>
+                    <div id="income-donut"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-journal" class="page">
+            <header class="flex justify-between items-center mb-10">
+                <h1 class="text-3xl font-black">Trade Journal</h1>
+                <div class="flex gap-2">
+                    <input type="text" placeholder="Search Symbol..." class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-emerald-500/50">
+                    <button class="bg-emerald-500 text-black px-6 py-2 rounded-xl font-bold text-sm">Export CSV</button>
+                </div>
+            </header>
+
+            <div class="glass overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-white/[0.02] text-[10px] uppercase font-bold text-slate-500 border-b border-white/5">
+                        <tr>
+                            <th class="px-6 py-5">Date</th>
+                            <th class="px-6 py-5">Instrument</th>
+                            <th class="px-6 py-5">Action</th>
+                            <th class="px-6 py-5">Price</th>
+                            <th class="px-6 py-5">Amount</th>
+                            <th class="px-6 py-5">Tag</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5 font-mono text-sm">
+                        <tr class="hover:bg-white/[0.02] transition">
+                            <td class="px-6 py-4 text-slate-500 uppercase">Mar 23</td>
+                            <td class="px-6 py-4 font-bold text-white uppercase tracking-tighter underline decoration-emerald-500/30">NVDA 125C 04/14</td>
+                            <td class="px-6 py-4 text-emerald-400">SELL (TO)</td>
+                            <td class="px-6 py-4">$2.40</td>
+                            <td class="px-6 py-4">+$240.00</td>
+                            <td class="px-6 py-4"><span class="bg-blue-500/10 text-blue-400 text-[10px] px-2 py-1 rounded-full uppercase font-bold">Covered Call</span></td>
+                        </tr>
+                        <tr class="hover:bg-white/[0.02] transition">
+                            <td class="px-6 py-4 text-slate-500 uppercase">Mar 20</td>
+                            <td class="px-6 py-4 font-bold text-white uppercase tracking-tighter">SCHD</td>
+                            <td class="px-6 py-4 text-blue-400">DIVIDEND</td>
+                            <td class="px-6 py-4">$0.61</td>
+                            <td class="px-6 py-4 text-blue-400">+$61.00</td>
+                            <td class="px-6 py-4"><span class="bg-slate-500/10 text-slate-400 text-[10px] px-2 py-1 rounded-full uppercase font-bold">Dividend</span></td>
+                        </tr>
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="page-wheel" class="page">
+            <header class="mb-10 flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-black tracking-tight">Strategy Engine</h1>
+                    <p class="text-slate-500 text-sm">Tracking cost-basis reduction across assignments.</p>
+                </div>
+                <button class="bg-white/5 hover:bg-white/10 p-3 rounded-full transition border border-white/10"><i class="fa-solid fa-plus text-emerald-500"></i></button>
+            </header>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass p-8 group border-l-4 border-emerald-500">
+                    <div class="flex justify-between items-start mb-8">
+                        <div>
+                            <h2 class="text-4xl font-black uppercase tracking-tighter">NVDA</h2>
+                            <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded font-black uppercase">Phase 2: Selling Calls</span>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] font-bold text-slate-500 uppercase">Current Basis</p>
+                            <p class="text-3xl font-bold font-mono text-emerald-400">$102.40</p>
+                            <p class="text-xs text-slate-600 italic">Original: $115.00</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-4 py-4 border-y border-white/5 mb-6">
+                        <div><p class="text-[10px] text-slate-500 font-bold uppercase">Premiums</p><p class="font-bold text-emerald-400">+$1,140</p></div>
+                        <div><p class="text-[10px] text-slate-500 font-bold uppercase">Dividends</p><p class="font-bold text-blue-400">+$120</p></div>
+                        <div><p class="text-[10px] text-slate-500 font-bold uppercase">Total Reduc.</p><p class="font-bold text-white">-$1,260</p></div>
+                    </div>
+                    
+                    <button class="w-full bg-white/5 py-3 rounded-xl font-bold text-xs uppercase tracking
