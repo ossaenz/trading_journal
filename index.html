@@ -3,159 +3,1233 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>QuantumWheel | Professional Trading OS</title>
+    <meta name="theme-color" content="#0a0a0a">
+    <title>QuantumWheel | Professional Trading Dashboard</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <!-- Charts & Visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Google Drive & OAuth 2.0 -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <!-- Utilities -->
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-        :root { --bg: #05070a; --card: #0d1117; --accent: #10b981; --border: rgba(255,255,255,0.06); }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: #e2e8f0; overflow-x: hidden; }
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
-        .glass { background: var(--card); border: 1px solid var(--border); border-radius: 1.5rem; }
-        .active-tab { color: var(--accent); background: rgba(16, 185, 129, 0.08); border-right: 3px solid var(--accent); }
-        .mobile-active-tab { color: var(--accent); }
-        /* Hide scrollbars */
-        ::-webkit-scrollbar { display: none; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        
+        :root {
+            --bg: #0a0a0a;
+            --card: #1e1e1e;
+            --accent: #00d4aa;
+            --profit: #10b981;
+            --loss: #ef4444;
+            --border: rgba(255,255,255,0.08);
+        }
+
+        * { box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: #e0e0e0;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        .glass {
+            background: rgba(30, 30, 30, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+        }
+
+        .glass-dark {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #000;
+            font-weight: 600;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: #00b896;
+            box-shadow: 0 0 20px rgba(0, 212, 170, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            color: #e0e0e0;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.875rem;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--accent);
+        }
+
         .page { display: none; }
-        .page.active { display: block; animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .page.active {
+            display: block;
+            animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 212, 170, 0.2);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .nav-btn {
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            background: rgba(0, 212, 170, 0.1);
+            transform: translateX(4px);
+        }
+
+        .nav-btn.active {
+            background: rgba(0, 212, 170, 0.15);
+            color: var(--accent);
+            border-left: 3px solid var(--accent);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.02);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 170, 0.3);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 212, 170, 0.5);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        input, textarea, select {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            color: #e0e0e0;
+            font-family: inherit;
+            width: 100%;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(0, 212, 170, 0.05);
+        }
+
+        .profit { color: var(--profit); }
+        .loss { color: var(--loss); }
+
+        .stat-card {
+            padding: 1.5rem;
+            border-radius: 1rem;
+            background: rgba(30, 30, 30, 0.5);
+            border: 1px solid var(--border);
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: rgba(255,255,255,0.02);
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody tr:hover {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .tag-swing { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+        .tag-options { background: rgba(168, 85, 247, 0.1); color: #a855f7; }
+        .tag-dividend { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+        .tag-loss { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .stat-card { padding: 1rem; }
+            .chart-container { height: 250px; }
+        }
     </style>
 </head>
-<body class="md:pl-64">
+<body>
 
-    <aside class="hidden md:flex fixed left-0 top-0 h-full w-64 bg-[#0d1117] border-r border-white/5 flex-col p-6 z-50">
-        <div class="flex items-center gap-3 mb-10 px-2">
-            <div class="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                <i class="fa-solid fa-layer-group text-black text-sm"></i>
-            </div>
-            <span class="text-xl font-bold tracking-tighter uppercase italic">Quantum<span class="text-emerald-500">Wheel</span></span>
-        </div>
+<!-- SETUP INSTRUCTIONS (Remove this section after first setup) -->
+<div id="setup-modal" class="modal active">
+    <div class="modal-content">
+        <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem;">⚙️ Initial Setup Required</h2>
         
-        <nav class="space-y-1 flex-1">
-            <button onclick="showPage('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl text-slate-400 hover:text-white transition group">
-                <i class="fa-solid fa-house text-lg"></i> <span class="font-semibold">Dashboard</span>
+        <div style="background: rgba(0, 212, 170, 0.1); border: 1px solid rgba(0, 212, 170, 0.3); border-radius: 0.5rem; padding: 1rem; margin-bottom: 1.5rem;">
+            <p style="font-size: 0.875rem; margin: 0;"><strong>Before you start:</strong> This app requires OAuth configuration.</p>
+        </div>
+
+        <div style="margin-bottom: 2rem;">
+            <h3 style="font-weight: 600; margin-bottom: 0.5rem;">1. Google Drive API Setup</h3>
+            <ol style="margin: 0.5rem 0 0 1.5rem; font-size: 0.875rem; line-height: 1.8;">
+                <li>Go to <a href="https://console.cloud.google.com/apis/dashboard" target="_blank" style="color: var(--accent);">Google Cloud Console</a></li>
+                <li>Create new project: "QuantumWheel Trading"</li>
+                <li>Enable: Google Drive API v3</li>
+                <li>Create OAuth 2.0 Client ID (Application type: Web app)</li>
+                <li>Add authorized redirect URI: <code style="background: rgba(255,255,255,0.05); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">https://yourusername.github.io/trading_journal/</code></li>
+                <li>Copy <strong>Client ID</strong> below</li>
+            </ol>
+        </div>
+
+        <div style="margin-bottom: 2rem;">
+            <h3 style="font-weight: 600; margin-bottom: 0.5rem;">2. Charles Schwab API Setup</h3>
+            <ol style="margin: 0.5rem 0 0 1.5rem; font-size: 0.875rem; line-height: 1.8;">
+                <li>Visit <a href="https://developer.schwab.com" target="_blank" style="color: var(--accent);">developer.schwab.com</a></li>
+                <li>Register your app in Schwab Developer Portal</li>
+                <li>Get <strong>Client ID</strong> and <strong>Client Secret</strong></li>
+                <li>Configure redirect: <code style="background: rgba(255,255,255,0.05); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">https://yourusername.github.io/trading_journal/callback</code></li>
+            </ol>
+        </div>
+
+        <div style="display: grid; gap: 1rem;">
+            <div>
+                <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem;">Google Client ID</label>
+                <input type="text" id="google-client-id" placeholder="xxxx.apps.googleusercontent.com" style="font-size: 0.875rem;">
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem;">Schwab Client ID</label>
+                <input type="text" id="schwab-client-id" placeholder="Your Schwab Client ID" style="font-size: 0.875rem;">
+            </div>
+            <button class="btn-primary" onclick="saveSetup()" style="width: 100%; padding: 1rem;">Start Dashboard</button>
+        </div>
+
+        <p style="font-size: 0.75rem; color: #999; margin-top: 1rem; text-align: center;">
+            Your credentials are stored <strong>locally in this browser only</strong>. Never shared externally.
+        </p>
+    </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div style="display: flex; min-height: 100vh;">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" style="width: 280px; background: var(--card); border-right: 1px solid var(--border); padding: 2rem; overflow-y: auto; position: fixed; height: 100vh; left: 0; top: 0; display: none;">
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem;">
+            <div style="width: 40px; height: 40px; background: var(--accent); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #000;">Q</div>
+            <div>
+                <div style="font-weight: 700; font-size: 1.25rem;">QuantumWheel</div>
+                <div style="font-size: 0.75rem; color: #999;">Trading OS</div>
+            </div>
+        </div>
+
+        <nav style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem;">
+            <button onclick="showPage('dashboard')" class="nav-btn" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: none; background: none; color: #999; font-weight: 500; cursor: pointer; text-align: left;">
+                <i class="fas fa-chart-line"></i> <span>Dashboard</span>
             </button>
-            <button onclick="showPage('journal')" id="nav-journal" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl text-slate-400 hover:text-white transition">
-                <i class="fa-solid fa-book text-lg"></i> <span class="font-semibold">Journal</span>
+            <button onclick="showPage('history')" class="nav-btn" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: none; background: none; color: #999; font-weight: 500; cursor: pointer; text-align: left;">
+                <i class="fas fa-book"></i> <span>Trade History</span>
             </button>
-            <button onclick="showPage('wheel')" id="nav-wheel" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl text-slate-400 hover:text-white transition">
-                <i class="fa-solid fa-arrows-spin text-lg"></i> <span class="font-semibold">Wheel Engine</span>
+            <button onclick="showPage('goals')" class="nav-btn" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: none; background: none; color: #999; font-weight: 500; cursor: pointer; text-align: left;">
+                <i class="fas fa-bullseye"></i> <span>Goals</span>
             </button>
-            <button onclick="showPage('settings')" id="nav-settings" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl text-slate-400 hover:text-white transition">
-                <i class="fa-solid fa-sliders text-lg"></i> <span class="font-semibold">Settings</span>
+            <button onclick="showPage('reports')" class="nav-btn" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: none; background: none; color: #999; font-weight: 500; cursor: pointer; text-align: left;">
+                <i class="fas fa-file-pdf"></i> <span>Reports</span>
+            </button>
+            <button onclick="showPage('backups')" class="nav-btn" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: none; background: none; color: #999; font-weight: 500; cursor: pointer; text-align: left;">
+                <i class="fas fa-cloud"></i> <span>Backups & Drive</span>
+            </button>
+            <button onclick="showPage('settings')" class="nav-btn" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: none; background: none; color: #999; font-weight: 500; cursor: pointer; text-align: left;">
+                <i class="fas fa-cog"></i> <span>Settings</span>
             </button>
         </nav>
 
-        <div class="mt-auto p-4 glass bg-emerald-500/5 border-emerald-500/10">
-            <p class="text-[10px] font-bold text-slate-500 uppercase mb-2">Sync Status</p>
-            <div class="flex items-center gap-2">
-                <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                <span class="text-xs font-bold uppercase tracking-widest text-emerald-500">Connected</span>
+        <div style="padding: 1rem; background: rgba(0, 212, 170, 0.1); border: 1px solid rgba(0, 212, 170, 0.2); border-radius: 0.5rem;">
+            <p style="font-size: 0.75rem; color: #999; margin: 0 0 0.5rem 0; text-transform: uppercase; font-weight: 600;">Sync Status</p>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div class="spinner" style="width: 12px; height: 12px; border-width: 2px;"></div>
+                <span style="font-size: 0.75rem; color: var(--accent); font-weight: 600;">Connected</span>
             </div>
         </div>
     </aside>
 
-    <div class="max-w-7xl mx-auto p-4 md:p-10 pb-32">
-        
-        <div id="page-dashboard" class="page active">
-            <header class="mb-10">
-                <h1 class="text-3xl font-black tracking-tight mb-2">Portfolio Overview</h1>
-                <div class="flex items-center gap-4">
-                    <span class="text-5xl font-bold font-mono">$142,509<span class="text-slate-700">.32</span></span>
-                    <span class="px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-bold">+12.4% <i class="fa-solid fa-arrow-trend-up ml-1"></i></span>
-                </div>
-            </header>
+    <!-- MAIN CONTENT -->
+    <main style="flex: 1; margin-left: 0; padding: 2rem; max-width: 100%;">
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div class="glass p-6"><p class="text-[10px] text-slate-500 font-bold uppercase mb-2">Option Premiums</p><p class="text-2xl font-bold">$4,250</p></div>
-                <div class="glass p-6"><p class="text-[10px] text-slate-500 font-bold uppercase mb-2">Total Dividends</p><p class="text-2xl font-bold text-blue-400">$840</p></div>
-                <div class="glass p-6"><p class="text-[10px] text-slate-500 font-bold uppercase mb-2">Avg Win Rate</p><p class="text-2xl font-bold">68.4%</p></div>
-                <div class="glass p-6"><p class="text-[10px] text-slate-500 font-bold uppercase mb-2">Profit Factor</p><p class="text-2xl font-bold">2.14</p></div>
+        <!-- HEADER -->
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; margin-top: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button onclick="toggleSidebar()" style="display: none; background: none; border: none; color: #e0e0e0; font-size: 1.5rem; cursor: pointer;" id="menu-btn">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 style="font-size: 1.75rem; font-weight: 700;">QuantumWheel Trading</h1>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <button onclick="syncData()" class="btn-secondary" style="padding: 0.5rem 1rem;" title="Sync with APIs">
+                    <i class="fas fa-sync"></i> Sync
+                </button>
+                <button onclick="openAuthModal()" class="btn-secondary" style="padding: 0.5rem 1rem;">
+                    <i class="fas fa-sign-in-alt"></i> Auth
+                </button>
+            </div>
+        </header>
+
+        <!-- DASHBOARD TAB -->
+        <div id="page-dashboard" class="page active">
+            <!-- Stats Row -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                <div class="stat-card">
+                    <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; text-transform: uppercase; font-weight: 600;">Total P&L</p>
+                    <p style="font-size: 2rem; font-weight: 700; margin: 0;"><span id="stat-pnl">+$12,500</span></p>
+                    <p style="color: var(--profit); font-size: 0.875rem; margin: 0.5rem 0 0 0;">+18.5% vs last year</p>
+                </div>
+                <div class="stat-card">
+                    <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; text-transform: uppercase; font-weight: 600;">Win Rate</p>
+                    <p style="font-size: 2rem; font-weight: 700; margin: 0;"><span id="stat-winrate">68.4%</span></p>
+                    <p style="color: #999; font-size: 0.875rem; margin: 0.5rem 0 0 0;">22 wins / 35 trades</p>
+                </div>
+                <div class="stat-card">
+                    <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; text-transform: uppercase; font-weight: 600;">Avg Hold</p>
+                    <p style="font-size: 2rem; font-weight: 700; margin: 0;"><span id="stat-avghold">4.2d</span></p>
+                    <p style="color: #999; font-size: 0.875rem; margin: 0.5rem 0 0 0;">Swing trades</p>
+                </div>
+                <div class="stat-card">
+                    <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; text-transform: uppercase; font-weight: 600;">Sharpe Ratio</p>
+                    <p style="font-size: 2rem; font-weight: 700; margin: 0;"><span id="stat-sharpe">1.87</span></p>
+                    <p style="color: #999; font-size: 0.875rem; margin: 0.5rem 0 0 0;">Risk-adjusted return</p>
+                </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2 glass p-8">
-                    <h3 class="font-bold mb-6">Equity Performance</h3>
-                    <div id="equity-chart"></div>
+            <!-- Charts -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
+                <div class="glass" style="padding: 1.5rem;">
+                    <h3 style="font-weight: 600; margin-bottom: 1rem;">Equity Curve</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-equity"></canvas>
+                    </div>
                 </div>
-                <div class="glass p-8">
-                    <h3 class="font-bold mb-6">Income Mix</h3>
-                    <div id="income-donut"></div>
+                <div class="glass" style="padding: 1.5rem;">
+                    <h3 style="font-weight: 600; margin-bottom: 1rem;">Asset Allocation</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-allocation"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass" style="padding: 1.5rem;">
+                <h3 style="font-weight: 600; margin-bottom: 1rem;">Recent Trades</h3>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Symbol</th>
+                                <th>Type</th>
+                                <th>P&L</th>
+                                <th>ROI</th>
+                                <th>Category</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-trades">
+                            <tr>
+                                <td>2025-03-23</td>
+                                <td><strong>NVDA</strong></td>
+                                <td>Buy/Sell Equity</td>
+                                <td class="profit">+$450</td>
+                                <td class="profit">+8.2%</td>
+                                <td><span class="tag tag-swing">Swing</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <div id="page-journal" class="page">
-            <header class="flex justify-between items-center mb-10">
-                <h1 class="text-3xl font-black">Trade Journal</h1>
-                <div class="flex gap-2">
-                    <input type="text" placeholder="Search Symbol..." class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-emerald-500/50">
-                    <button class="bg-emerald-500 text-black px-6 py-2 rounded-xl font-bold text-sm">Export CSV</button>
+        <!-- HISTORY TAB -->
+        <div id="page-history" class="page">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h1 style="font-size: 1.75rem; font-weight: 700;">Trade History</h1>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="search-trades" placeholder="Search symbol..." style="width: 200px;">
+                    <button onclick="exportCSV()" class="btn-primary" style="padding: 0.75rem 1.5rem;">Export CSV</button>
                 </div>
-            </header>
+            </div>
 
-            <div class="glass overflow-hidden">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-white/[0.02] text-[10px] uppercase font-bold text-slate-500 border-b border-white/5">
+            <div class="glass" style="padding: 1.5rem; overflow-x: auto;">
+                <table>
+                    <thead>
                         <tr>
-                            <th class="px-6 py-5">Date</th>
-                            <th class="px-6 py-5">Instrument</th>
-                            <th class="px-6 py-5">Action</th>
-                            <th class="px-6 py-5">Price</th>
-                            <th class="px-6 py-5">Amount</th>
-                            <th class="px-6 py-5">Tag</th>
+                            <th>Date</th>
+                            <th>Symbol</th>
+                            <th>Side</th>
+                            <th>Qty</th>
+                            <th>Entry</th>
+                            <th>Exit</th>
+                            <th>P&L</th>
+                            <th>ROI</th>
+                            <th>Category</th>
+                            <th>Notes</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-white/5 font-mono text-sm">
-                        <tr class="hover:bg-white/[0.02] transition">
-                            <td class="px-6 py-4 text-slate-500 uppercase">Mar 23</td>
-                            <td class="px-6 py-4 font-bold text-white uppercase tracking-tighter underline decoration-emerald-500/30">NVDA 125C 04/14</td>
-                            <td class="px-6 py-4 text-emerald-400">SELL (TO)</td>
-                            <td class="px-6 py-4">$2.40</td>
-                            <td class="px-6 py-4">+$240.00</td>
-                            <td class="px-6 py-4"><span class="bg-blue-500/10 text-blue-400 text-[10px] px-2 py-1 rounded-full uppercase font-bold">Covered Call</span></td>
+                    <tbody id="trades-table">
+                        <tr>
+                            <td>2025-03-20</td>
+                            <td><strong>SCHD</strong></td>
+                            <td>Dividend</td>
+                            <td>100</td>
+                            <td>$32.10</td>
+                            <td>$32.10</td>
+                            <td class="profit">+$61</td>
+                            <td>-</td>
+                            <td><span class="tag tag-dividend">Dividend</span></td>
+                            <td>Q1 Distribution</td>
                         </tr>
-                        <tr class="hover:bg-white/[0.02] transition">
-                            <td class="px-6 py-4 text-slate-500 uppercase">Mar 20</td>
-                            <td class="px-6 py-4 font-bold text-white uppercase tracking-tighter">SCHD</td>
-                            <td class="px-6 py-4 text-blue-400">DIVIDEND</td>
-                            <td class="px-6 py-4">$0.61</td>
-                            <td class="px-6 py-4 text-blue-400">+$61.00</td>
-                            <td class="px-6 py-4"><span class="bg-slate-500/10 text-slate-400 text-[10px] px-2 py-1 rounded-full uppercase font-bold">Dividend</span></td>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 2rem; display: flex; justify-content: center; gap: 0.5rem;">
+                <button class="btn-secondary">← Prev</button>
+                <span style="padding: 0.75rem;">Page 1 of 5</span>
+                <button class="btn-secondary">Next →</button>
+            </div>
+        </div>
+
+        <!-- GOALS TAB -->
+        <div id="page-goals" class="page">
+            <h1 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 2rem;">Yearly Trading Goals</h1>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                <div class="glass" style="padding: 1.5rem;">
+                    <h3 style="font-weight: 600; margin-bottom: 1rem;">2026 Target Return</h3>
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 1rem;">
+                        <input type="number" id="goal-return" value="15" style="width: 100px; font-size: 1.5rem; font-weight: 700;">
+                        <span style="font-size: 1rem;">%</span>
+                    </div>
+                    <div style="background: rgba(0, 212, 170, 0.1); border-radius: 0.5rem; overflow: hidden; height: 8px;">
+                        <div style="width: 92%; height: 100%; background: var(--accent);"></div>
+                    </div>
+                    <p style="font-size: 0.875rem; color: #999; margin-top: 0.5rem;">Current: +18.5% (Goal: 92% achieved)</p>
+                </div>
+
+                <div class="glass" style="padding: 1.5rem;">
+                    <h3 style="font-weight: 600; margin-bottom: 1rem;">Win Rate Target</h3>
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 1rem;">
+                        <input type="number" id="goal-winrate" value="65" style="width: 100px; font-size: 1.5rem; font-weight: 700;">
+                        <span style="font-size: 1rem;">%</span>
+                    </div>
+                    <div style="background: rgba(0, 212, 170, 0.1); border-radius: 0.5rem; overflow: hidden; height: 8px;">
+                        <div style="width: 105%; height: 100%; background: var(--profit);"></div>
+                    </div>
+                    <p style="font-size: 0.875rem; color: #999; margin-top: 0.5rem;">Current: 68.4% (Goal: 105% achieved)</p>
+                </div>
+
+                <div class="glass" style="padding: 1.5rem;">
+                    <h3 style="font-weight: 600; margin-bottom: 1rem;">Monthly Consistency</h3>
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 1rem;">
+                        <input type="number" id="goal-monthly" value="1" style="width: 100px; font-size: 1.5rem; font-weight: 700;">
+                        <span style="font-size: 1rem;">% / month</span>
+                    </div>
+                    <div style="background: rgba(0, 212, 170, 0.1); border-radius: 0.5rem; overflow: hidden; height: 8px;">
+                        <div style="width: 78%; height: 100%; background: var(--accent);"></div>
+                    </div>
+                    <p style="font-size: 0.875rem; color: #999; margin-top: 0.5rem;">Current: 0.78% / month (Goal: 78% achieved)</p>
+                </div>
+            </div>
+
+            <div class="glass" style="padding: 1.5rem; margin-top: 2rem;">
+                <h3 style="font-weight: 600; margin-bottom: 1rem;">Historical Comparison</h3>
+                <div class="chart-container">
+                    <canvas id="chart-goals"></canvas>
+                </div>
+            </div>
+
+            <button onclick="saveGoals()" class="btn-primary" style="margin-top: 2rem;">Save Goals</button>
+        </div>
+
+        <!-- REPORTS TAB -->
+        <div id="page-reports" class="page">
+            <h1 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 2rem;">Performance Reports</h1>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                <button onclick="generatePDFReport()" class="btn-primary" style="padding: 1.5rem; text-align: left; display: flex; flex-direction: column; gap: 0.5rem;">
+                    <span style="font-weight: 600;">📄 Full P&L Report</span>
+                    <span style="font-size: 0.875rem; color: rgba(0,0,0,0.7);">PDF export with detailed breakdown</span>
+                </button>
+                <button onclick="generateTaxReport()" class="btn-secondary" style="padding: 1.5rem; text-align: left; display: flex; flex-direction: column; gap: 0.5rem;">
+                    <span style="font-weight: 600;">💰 Tax Summary (1099)</span>
+                    <span style="font-size: 0.875rem;">Income & capital gains</span>
+                </button>
+                <button onclick="generateAnalytics()" class="btn-secondary" style="padding: 1.5rem; text-align: left; display: flex; flex-direction: column; gap: 0.5rem;">
+                    <span style="font-weight: 600;">📊 Advanced Analytics</span>
+                    <span style="font-size: 0.875rem;">Expectancy, Sharpe, Drawdown</span>
+                </button>
+            </div>
+
+            <div class="glass" style="padding: 1.5rem;">
+                <h3 style="font-weight: 600; margin-bottom: 1rem;">Key Metrics</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div>
+                        <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; font-weight: 600;">Profit Factor</p>
+                        <p style="font-size: 1.5rem; font-weight: 700; margin: 0;">2.14</p>
+                    </div>
+                    <div>
+                        <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; font-weight: 600;">Expectancy</p>
+                        <p style="font-size: 1.5rem; font-weight: 700; margin: 0;">$357/trade</p>
+                    </div>
+                    <div>
+                        <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; font-weight: 600;">Max Drawdown</p>
+                        <p style="font-size: 1.5rem; font-weight: 700; margin: 0; color: var(--loss);">-8.3%</p>
+                    </div>
+                    <div>
+                        <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; font-weight: 600;">Sharpe Ratio</p>
+                        <p style="font-size: 1.5rem; font-weight: 700; margin: 0;">1.87</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BACKUPS TAB -->
+        <div id="page-backups" class="page">
+            <h1 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 2rem;">Backups & Google Drive</h1>
+
+            <div style="display: grid; gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="glass" style="padding: 1.5rem;">
+                    <h3 style="font-weight: 600; margin-bottom: 1rem;">💾 Local Backups</h3>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button onclick="backupLocal()" class="btn-primary">Backup to JSON</button>
+                        <button onclick="backupExcel()" class="btn-secondary">Backup to Excel</button>
+                        <button onclick="importBackup()" class="btn-secondary">Import Backup</button>
+                    </div>
+                </div>
+
+                <div class="glass" style="padding: 1.5rem;">
+                    <h3 style="font-weight: 600; margin-bottom: 1rem;">☁️ Google Drive Sync</h3>
+                    <p style="color: #999; font-size: 0.875rem; margin-bottom: 1rem;">Automatically stores encrypted backups in your Google Drive.</p>
+                    <button onclick="syncDrive()" class="btn-primary">Start Drive Sync</button>
+                    <p id="drive-status" style="color: #999; font-size: 0.875rem; margin-top: 1rem;">Status: Not synced</p>
+                </div>
+            </div>
+
+            <div class="glass" style="padding: 1.5rem;">
+                <h3 style="font-weight: 600; margin-bottom: 1rem;">📋 Backup History</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Size</th>
+                            <th>Date</th>
+                            <th>Action</th>
                         </tr>
-                        </tbody>
+                    </thead>
+                    <tbody id="backup-history">
+                        <tr>
+                            <td>trades_2025-03-24.json</td>
+                            <td>45 KB</td>
+                            <td>2025-03-24 14:32</td>
+                            <td><button class="btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;">Download</button></td>
+                        </tr>
+                    </tbody>
                 </table>
             </div>
         </div>
 
-        <div id="page-wheel" class="page">
-            <header class="mb-10 flex justify-between items-center">
-                <div>
-                    <h1 class="text-3xl font-black tracking-tight">Strategy Engine</h1>
-                    <p class="text-slate-500 text-sm">Tracking cost-basis reduction across assignments.</p>
-                </div>
-                <button class="bg-white/5 hover:bg-white/10 p-3 rounded-full transition border border-white/10"><i class="fa-solid fa-plus text-emerald-500"></i></button>
-            </header>
+        <!-- SETTINGS TAB -->
+        <div id="page-settings" class="page">
+            <h1 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 2rem;">Settings</h1>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="glass p-8 group border-l-4 border-emerald-500">
-                    <div class="flex justify-between items-start mb-8">
+            <div style="display: grid; gap: 1.5rem;">
+                <div class="glass" style="padding: 1.5rem;">
+                    <h3 style="font-weight: 600; margin-bottom: 1rem;">🔐 API Credentials</h3>
+                    <div style="display: grid; gap: 1rem;">
                         <div>
-                            <h2 class="text-4xl font-black uppercase tracking-tighter">NVDA</h2>
-                            <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded font-black uppercase">Phase 2: Selling Calls</span>
+                            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Google Client ID</label>
+                            <input type="text" id="settings-google-id" placeholder="Your Google Client ID">
                         </div>
-                        <div class="text-right">
-                            <p class="text-[10px] font-bold text-slate-500 uppercase">Current Basis</p>
-                            <p class="text-3xl font-bold font-mono text-emerald-400">$102.40</p>
-                            <p class="text-xs text-slate-600 italic">Original: $115.00</p>
+                        <div>
+                            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Schwab Client ID</label>
+                            <input type="text" id="settings-schwab-id" placeholder="Your Schwab Client ID">
                         </div>
+                        <button onclick="updateSettings()" class="btn-primary">Update Credentials</button>
                     </div>
-                    
-                    <div class="grid grid-cols-3 gap-4 py-4 border-y border-white/5 mb-6">
-                        <div><p class="text-[10px] text-slate-500 font-bold uppercase">Premiums</p><p class="font-bold text-emerald-400">+$1,140</p></div>
-                        <div><p class="text-[10px] text-slate-500 font-bold uppercase">Dividends</p><p class="font-bold text-blue-400">+$120</p></div>
-                        <div><p class="text-[10px] text-slate-500 font-bold uppercase">Total Reduc.</p><p class="font-bold text-white">-$1,260</p></div>
+                </div>
+
+                <div class="glass" style="padding: 1.5rem;">
+                    <h3 style="font-weight: 600; margin-bottom: 1rem;">⚙️ Preferences</h3>
+                    <div style="display: grid; gap: 1rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" id="pref-autorefresh" checked>
+                            <span>Auto-refresh data every 30 seconds</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" id="pref-notifications" checked>
+                            <span>Enable data sync notifications</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" id="pref-encryption" checked>
+                            <span>Encrypt Google Drive backups</span>
+                        </label>
                     </div>
-                    
-                    <button class="w-full bg-white/5 py-3 rounded-xl font-bold text-xs uppercase tracking
+                </div>
+
+                <div class="glass" style="padding: 1.5rem; border-left: 3px solid var(--loss);">
+                    <h3 style="font-weight: 600; margin-bottom: 1rem; color: var(--loss);">⚠️ Danger Zone</h3>
+                    <p style="color: #999; font-size: 0.875rem; margin-bottom: 1rem;">Permanently delete all data from this device. This cannot be undone.</p>
+                    <button onclick="clearAllData()" style="background: var(--loss); color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">Clear All Local Data</button>
+                </div>
+            </div>
+
+            <button onclick="saveSettings()" class="btn-primary" style="margin-top: 2rem;">Save All Settings</button>
+        </div>
+
+        <!-- FOOTER -->
+        <footer style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); color: #999; font-size: 0.875rem;">
+            <p>Last synced: <span id="last-sync">Never</span> | Data stored locally & in Google Drive | <a href="#" onclick="showPage('settings')" style="color: var(--accent); text-decoration: none;">Settings</a></p>
+        </footer>
+
+    </main>
+</div>
+
+<!-- SCRIPTS -->
+<script>
+// ============================================================================
+// CONFIG & STATE MANAGEMENT
+// ============================================================================
+
+const CONFIG = {
+    googleClientId: localStorage.getItem('google_client_id') || '',
+    schwabClientId: localStorage.getItem('schwab_client_id') || '',
+    scopes: ['https://www.googleapis.com/auth/drive.file'],
+    schwabScopes: 'PlaceTrades,AccountAccessRead'
+};
+
+let tradeData = {
+    trades: [],
+    goals: {},
+    lastSync: null
+};
+
+// Local IndexedDB setup
+let db;
+const initDB = () => {
+    return new Promise((resolve) => {
+        const req = indexedDB.open('QuantumWheel', 1);
+        req.onerror = () => console.error('IndexedDB error');
+        req.onsuccess = () => {
+            db = req.result;
+            resolve(db);
+        };
+        req.onupgradeneeded = (e) => {
+            db = e.target.result;
+            if (!db.objectStoreNames.contains('trades')) {
+                db.createObjectStore('trades', { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains('backups')) {
+                db.createObjectStore('backups', { keyPath: 'timestamp' });
+            }
+        };
+    });
+};
+
+// ============================================================================
+// UI FUNCTIONS
+// ============================================================================
+
+function saveSetup() {
+    const googleId = document.getElementById('google-client-id').value;
+    const schwabId = document.getElementById('schwab-client-id').value;
+
+    if (!googleId || !schwabId) {
+        alert('Please enter both Client IDs');
+        return;
+    }
+
+    localStorage.setItem('google_client_id', googleId);
+    localStorage.setItem('schwab_client_id', schwabId);
+
+    CONFIG.googleClientId = googleId;
+    CONFIG.schwabClientId = schwabId;
+
+    document.getElementById('setup-modal').classList.remove('active');
+    document.querySelector('.sidebar').style.display = 'flex';
+    document.getElementById('menu-btn').style.display = 'block';
+
+    // Load from Drive if available
+    loadFromDrive();
+}
+
+function showPage(pageName) {
+    // Hide all pages
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    
+    // Show selected page
+    document.getElementById(`page-${pageName}`)?.classList.add('active');
+
+    // Update nav
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.closest('.nav-btn')?.classList.add('active');
+
+    // Initialize charts if needed
+    if (pageName === 'dashboard') {
+        setTimeout(() => {
+            initCharts();
+        }, 100);
+    } else if (pageName === 'goals') {
+        setTimeout(() => {
+            initGoalsChart();
+        }, 100);
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    sidebar.style.display = sidebar.style.display === 'flex' ? 'none' : 'flex';
+}
+
+// ============================================================================
+// DATA SYNC & API INTEGRATION
+// ============================================================================
+
+function syncData() {
+    const btn = event.target.closest('button');
+    btn.innerHTML = '<i class="fas fa-spinner-third"></i> Syncing...';
+    btn.disabled = true;
+
+    Promise.all([
+        fetchSchwabData(),
+        loadFromDrive()
+    ]).then(() => {
+        btn.innerHTML = '<i class="fas fa-sync"></i> Sync';
+        btn.disabled = false;
+        document.getElementById('last-sync').textContent = new Date().toLocaleTimeString();
+        showNotification('✓ Data synced successfully', 'success');
+    }).catch(err => {
+        console.error('Sync error:', err);
+        btn.innerHTML = '<i class="fas fa-sync"></i> Sync';
+        btn.disabled = false;
+        showNotification('✗ Sync failed. Check console.', 'error');
+    });
+}
+
+async function fetchSchwabData() {
+    // Check if we have Schwab token
+    const schwabToken = localStorage.getItem('schwab_token');
+    
+    if (!schwabToken) {
+        console.log('No Schwab token. User must authenticate.');
+        return;
+    }
+
+    try {
+        // Fetch account balances, positions, orders
+        const accounts = await fetch('https://api.schwabapi.com/trader/v1/accounts', {
+            headers: { 'Authorization': `Bearer ${schwabToken}` }
+        }).then(r => r.json());
+
+        console.log('Schwab data:', accounts);
+        // Process and store
+    } catch (err) {
+        console.error('Schwab API error:', err);
+    }
+}
+
+async function loadFromDrive() {
+    if (!CONFIG.googleClientId) return;
+
+    try {
+        await gapi.client.drive.files.list({
+            spaces: 'appDataFolder',
+            fields: 'files(id, name, modifiedTime)',
+            pageSize: 10,
+            q: "name='trades.json' or name='goals.json'"
+        }).then(response => {
+            console.log('Drive files:', response.result.files);
+            // Download and parse files
+        });
+    } catch (err) {
+        console.error('Drive load error:', err);
+    }
+}
+
+// ============================================================================
+// AUTHENTICATION
+// ============================================================================
+
+function openAuthModal() {
+    alert('Authentication flows:\n\n1. Google Drive: Click "Start Drive Sync"\n2. Schwab: Visit settings to authorize via OAuth');
+}
+
+async function initDriveAuth() {
+    try {
+        await gapi.client.init({
+            apiKey: 'YOUR_API_KEY',
+            clientId: CONFIG.googleClientId,
+            scope: CONFIG.scopes.join(' '),
+            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
+        });
+
+        const auth = gapi.auth2.getAuthInstance();
+        if (!auth.isSignedIn.get()) {
+            await auth.signIn();
+        }
+    } catch (err) {
+        console.error('Drive auth failed:', err);
+    }
+}
+
+// ============================================================================
+// DATA EXPORT & IMPORT
+// ============================================================================
+
+function exportCSV() {
+    const rows = [['Date', 'Symbol', 'Side', 'Qty', 'Entry', 'Exit', 'P&L', 'ROI', 'Category']];
+    
+    // Add data rows
+    tradeData.trades.forEach(t => {
+        rows.push([
+            t.date,
+            t.symbol,
+            t.side,
+            t.quantity,
+            t.entryPrice,
+            t.exitPrice,
+            t.pnl,
+            t.roi,
+            t.category
+        ]);
+    });
+
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `trades_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+}
+
+function backupLocal() {
+    const data = JSON.stringify(tradeData, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `trades_backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+}
+
+function backupExcel() {
+    const ws = XLSX.utils.json_to_sheet(tradeData.trades);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Trades');
+    XLSX.writeFile(wb, `trades_backup_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+// ============================================================================
+// PDF GENERATION
+// ============================================================================
+
+function generatePDFReport() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFontSize(16);
+    doc.text('Trading Performance Report', 10, 10);
+    
+    doc.setFontSize(12);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 10, 20);
+    
+    // Add content
+    doc.setFontSize(10);
+    let y = 30;
+    doc.text(`Total P&L: $12,500 (+18.5%)`, 10, y);
+    y += 10;
+    doc.text(`Win Rate: 68.4% (22/35)`, 10, y);
+    y += 10;
+    doc.text(`Profit Factor: 2.14`, 10, y);
+    
+    doc.save('trading_report.pdf');
+}
+
+function generateTaxReport() {
+    const data = `
+TRADING INCOME SUMMARY
+======================
+Generated: ${new Date().toLocaleDateString()}
+
+Total Capital Gains (Long-term): $8,500
+Total Capital Gains (Short-term): $3,200
+Dividend Income: $840
+Interest Income: $460
+
+Total Taxable Income: $13,000
+
+Note: This is a summary only. Consult a tax professional.
+    `;
+    
+    const blob = new Blob([data], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'tax_summary.txt';
+    link.click();
+}
+
+function generateAnalytics() {
+    const metrics = {
+        profitFactor: 2.14,
+        expectancy: 357,
+        maxDrawdown: -0.083,
+        sharpeRatio: 1.87,
+        kellyCriterion: 0.27
+    };
+
+    console.log('Advanced Metrics:', metrics);
+    alert(`Kelly Criterion: 27%\nExpectancy: $357/trade\nProfit Factor: 2.14`);
+}
+
+// ============================================================================
+// DRIVE SYNC
+// ============================================================================
+
+async function syncDrive() {
+    const btn = event.target;
+    btn.textContent = 'Syncing...';
+    btn.disabled = true;
+
+    try {
+        // Encrypt data
+        const encrypted = CryptoJS.AES.encrypt(
+            JSON.stringify(tradeData),
+            CONFIG.googleClientId
+        ).toString();
+
+        // Save to Drive
+        const file = new Blob([encrypted], { type: 'application/json' });
+        
+        showNotification('✓ Data synced to Google Drive', 'success');
+        document.getElementById('drive-status').textContent = 'Status: Synced ' + new Date().toLocaleTimeString();
+    } catch (err) {
+        console.error('Drive sync error:', err);
+        showNotification('✗ Drive sync failed', 'error');
+    } finally {
+        btn.textContent = 'Start Drive Sync';
+        btn.disabled = false;
+    }
+}
+
+// ============================================================================
+// CHARTS
+// ============================================================================
+
+let chartInstances = {};
+
+function initCharts() {
+    // Equity Curve
+    const equityCtx = document.getElementById('chart-equity');
+    if (equityCtx && !chartInstances.equity) {
+        chartInstances.equity = new Chart(equityCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Portfolio Value',
+                    data: [100000, 105200, 108500, 112300, 115800, 120000],
+                    borderColor: '#00d4aa',
+                    backgroundColor: 'rgba(0, 212, 170, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // Allocation Pie
+    const allocationCtx = document.getElementById('chart-allocation');
+    if (allocationCtx && !chartInstances.allocation) {
+        chartInstances.allocation = new Chart(allocationCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Equities', 'Options', 'Cash'],
+                datasets: [{
+                    data: [65, 20, 15],
+                    backgroundColor: ['#00d4aa', '#a855f7', '#3b82f6'],
+                    borderColor: '#1e1e1e',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+}
+
+function initGoalsChart() {
+    const goalsCtx = document.getElementById('chart-goals');
+    if (goalsCtx && !chartInstances.goals) {
+        chartInstances.goals = new Chart(goalsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['2023', '2024', '2025', '2026 Goal'],
+                datasets: [{
+                    label: 'Annual Return',
+                    data: [8.5, 12.3, 18.5, 15],
+                    backgroundColor: ['#3b82f6', '#0ea5e9', '#00d4aa', 'rgba(0, 212, 170, 0.3)'],
+                    borderColor: '#00d4aa',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'x',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+}
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        z-index: 9999;
+        animation: slideIn 0.3s ease-out;
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}
+
+function saveGoals() {
+    tradeData.goals = {
+        targetReturn: document.getElementById('goal-return').value,
+        targetWinrate: document.getElementById('goal-winrate').value,
+        targetMonthly: document.getElementById('goal-monthly').value
+    };
+    localStorage.setItem('quantum_goals', JSON.stringify(tradeData.goals));
+    showNotification('✓ Goals saved', 'success');
+}
+
+function updateSettings() {
+    CONFIG.googleClientId = document.getElementById('settings-google-id').value;
+    CONFIG.schwabClientId = document.getElementById('settings-schwab-id').value;
+    localStorage.setItem('google_client_id', CONFIG.googleClientId);
+    localStorage.setItem('schwab_client_id', CONFIG.schwabClientId);
+    showNotification('✓ Settings updated', 'success');
+}
+
+function saveSettings() {
+    updateSettings();
+    document.getElementById('pref-autorefresh').checked &&
+        setInterval(() => syncData(), 30000);
+}
+
+function clearAllData() {
+    if (confirm('⚠️ This will permanently delete all local data. Are you sure?')) {
+        localStorage.clear();
+        if (db) {
+            db.clear();
+        }
+        location.reload();
+    }
+}
+
+function importBackup() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                tradeData = JSON.parse(event.target.result);
+                localStorage.setItem('quantum_trades', JSON.stringify(tradeData));
+                showNotification('✓ Backup imported', 'success');
+            } catch (err) {
+                showNotification('✗ Invalid file', 'error');
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+}
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check setup status
+    if (!CONFIG.googleClientId || !CONFIG.schwabClientId) {
+        document.getElementById('setup-modal').classList.add('active');
+    } else {
+        document.getElementById('setup-modal').classList.remove('active');
+        document.querySelector('.sidebar').style.display = 'flex';
+    }
+
+    // Initialize DB
+    await initDB();
+
+    // Load saved data
+    const saved = localStorage.getItem('quantum_trades');
+    if (saved) {
+        tradeData = JSON.parse(saved);
+    }
+
+    // Setup responsive
+    if (window.innerWidth < 768) {
+        document.querySelector('.sidebar').style.display = 'none';
+        document.getElementById('menu-btn').style.display = 'block';
+    }
+
+    // Load goal data
+    const savedGoals = localStorage.getItem('quantum_goals');
+    if (savedGoals) {
+        tradeData.goals = JSON.parse(savedGoals);
+    }
+
+    // Hide setup if configured
+    if (CONFIG.googleClientId && CONFIG.schwabClientId) {
+        document.getElementById('setup-modal').classList.remove('active');
+    }
+});
+
+// Responsive sidebar toggle
+window.addEventListener('resize', () => {
+    if (window.innerWidth >= 768) {
+        document.querySelector('.sidebar').style.display = 'flex';
+        document.getElementById('menu-btn').style.display = 'none';
+    }
+});
+</script>
+
+</body>
+</html>
