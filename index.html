@@ -263,51 +263,38 @@
 </head>
 <body>
 
-<!-- SETUP INSTRUCTIONS (Remove this section after first setup) -->
+<!-- SETUP MODAL -->
 <div id="setup-modal" class="modal active">
     <div class="modal-content">
-        <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem;">⚙️ Initial Setup Required</h2>
-        
-        <div style="background: rgba(0, 212, 170, 0.1); border: 1px solid rgba(0, 212, 170, 0.3); border-radius: 0.5rem; padding: 1rem; margin-bottom: 1.5rem;">
-            <p style="font-size: 0.875rem; margin: 0;"><strong>Before you start:</strong> This app requires OAuth configuration.</p>
-        </div>
+        <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">⚙️ Connect to Charles Schwab</h2>
+        <p style="color: #999; font-size: 0.875rem; margin-bottom: 1.5rem;">Enter your Schwab API credentials to automatically pull your real trade data.</p>
 
-        <div style="margin-bottom: 2rem;">
-            <h3 style="font-weight: 600; margin-bottom: 0.5rem;">1. Google Drive API Setup</h3>
-            <ol style="margin: 0.5rem 0 0 1.5rem; font-size: 0.875rem; line-height: 1.8;">
-                <li>Go to <a href="https://console.cloud.google.com/apis/dashboard" target="_blank" style="color: var(--accent);">Google Cloud Console</a></li>
-                <li>Create new project: "QuantumWheel Trading"</li>
-                <li>Enable: Google Drive API v3</li>
-                <li>Create OAuth 2.0 Client ID (Application type: Web app)</li>
-                <li>Add authorized redirect URI: <code style="background: rgba(255,255,255,0.05); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">https://yourusername.github.io/trading_journal/</code></li>
-                <li>Copy <strong>Client ID</strong> below</li>
-            </ol>
-        </div>
-
-        <div style="margin-bottom: 2rem;">
-            <h3 style="font-weight: 600; margin-bottom: 0.5rem;">2. Charles Schwab API Setup</h3>
-            <ol style="margin: 0.5rem 0 0 1.5rem; font-size: 0.875rem; line-height: 1.8;">
-                <li>Visit <a href="https://developer.schwab.com" target="_blank" style="color: var(--accent);">developer.schwab.com</a></li>
-                <li>Register your app in Schwab Developer Portal</li>
-                <li>Get <strong>Client ID</strong> and <strong>Client Secret</strong></li>
-                <li>Configure redirect: <code style="background: rgba(255,255,255,0.05); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">https://yourusername.github.io/trading_journal/callback</code></li>
-            </ol>
+        <div style="background: rgba(0,212,170,0.08); border: 1px solid rgba(0,212,170,0.25); border-radius: 0.5rem; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.8rem; line-height: 1.7;">
+            <strong>How to get credentials:</strong><br>
+            1. Go to <a href="https://developer.schwab.com" target="_blank" style="color:var(--accent);">developer.schwab.com</a> → My Apps → Create App<br>
+            2. Set Redirect URI to: <code id="setup-redirect-uri" style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:3px;">loading...</code><br>
+            3. Copy your <strong>App Key</strong> (Client ID) and <strong>Secret</strong> below
         </div>
 
         <div style="display: grid; gap: 1rem;">
             <div>
-                <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem;">Google Client ID</label>
-                <input type="text" id="google-client-id" placeholder="xxxx.apps.googleusercontent.com" style="font-size: 0.875rem;">
+                <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.4rem;">Schwab App Key (Client ID) *</label>
+                <input type="text" id="schwab-client-id" placeholder="Your Schwab App Key">
             </div>
             <div>
-                <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem;">Schwab Client ID</label>
-                <input type="text" id="schwab-client-id" placeholder="Your Schwab Client ID" style="font-size: 0.875rem;">
+                <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.4rem;">Schwab Secret *</label>
+                <input type="password" id="schwab-client-secret" placeholder="Your Schwab App Secret">
             </div>
-            <button class="btn-primary" onclick="saveSetup()" style="width: 100%; padding: 1rem;">Start Dashboard</button>
+            <div>
+                <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.4rem;">Google Client ID <span style="color:#999;font-weight:400;">(optional — for Drive backup)</span></label>
+                <input type="text" id="google-client-id" placeholder="xxxx.apps.googleusercontent.com">
+            </div>
+            <button class="btn-primary" onclick="saveSetup()" style="width: 100%; padding: 1rem;">Save & Connect Schwab</button>
+            <button onclick="skipSetup()" style="width:100%;padding:0.6rem;background:none;border:none;color:#666;cursor:pointer;font-size:0.8rem;">Skip — I'll set this up later</button>
         </div>
 
-        <p style="font-size: 0.75rem; color: #999; margin-top: 1rem; text-align: center;">
-            Your credentials are stored <strong>locally in this browser only</strong>. Never shared externally.
+        <p style="font-size: 0.7rem; color: #666; margin-top: 1rem; text-align: center;">
+            Credentials stored <strong>locally in your browser only</strong>. Never sent to any third-party server.
         </p>
     </div>
 </div>
@@ -326,22 +313,22 @@
         </div>
 
         <nav style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem;">
-            <button onclick="showPage('dashboard')" class="nav-btn" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: none; background: none; color: #999; font-weight: 500; cursor: pointer; text-align: left;">
+            <button onclick="showPage('dashboard')" class="nav-btn active" data-page="dashboard">
                 <i class="fas fa-chart-line"></i> <span>Dashboard</span>
             </button>
-            <button onclick="showPage('history')" class="nav-btn" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: none; background: none; color: #999; font-weight: 500; cursor: pointer; text-align: left;">
+            <button onclick="showPage('history')" class="nav-btn" data-page="history">
                 <i class="fas fa-book"></i> <span>Trade History</span>
             </button>
-            <button onclick="showPage('goals')" class="nav-btn" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: none; background: none; color: #999; font-weight: 500; cursor: pointer; text-align: left;">
+            <button onclick="showPage('goals')" class="nav-btn" data-page="goals">
                 <i class="fas fa-bullseye"></i> <span>Goals</span>
             </button>
-            <button onclick="showPage('reports')" class="nav-btn" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: none; background: none; color: #999; font-weight: 500; cursor: pointer; text-align: left;">
+            <button onclick="showPage('reports')" class="nav-btn" data-page="reports">
                 <i class="fas fa-file-pdf"></i> <span>Reports</span>
             </button>
-            <button onclick="showPage('backups')" class="nav-btn" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: none; background: none; color: #999; font-weight: 500; cursor: pointer; text-align: left;">
+            <button onclick="showPage('backups')" class="nav-btn" data-page="backups">
                 <i class="fas fa-cloud"></i> <span>Backups & Drive</span>
             </button>
-            <button onclick="showPage('settings')" class="nav-btn" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: none; background: none; color: #999; font-weight: 500; cursor: pointer; text-align: left;">
+            <button onclick="showPage('settings')" class="nav-btn" data-page="settings">
                 <i class="fas fa-cog"></i> <span>Settings</span>
             </button>
         </nav>
@@ -367,7 +354,7 @@
                 <h1 style="font-size: 1.75rem; font-weight: 700;">QuantumWheel Trading</h1>
             </div>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <button onclick="syncData()" class="btn-secondary" style="padding: 0.5rem 1rem;" title="Sync with APIs">
+                <button id="sync-btn" onclick="syncData(this)" class="btn-secondary" style="padding: 0.5rem 1rem;" title="Sync with APIs">
                     <i class="fas fa-sync"></i> Sync
                 </button>
                 <button onclick="openAuthModal()" class="btn-secondary" style="padding: 0.5rem 1rem;">
@@ -378,26 +365,44 @@
 
         <!-- DASHBOARD TAB -->
         <div id="page-dashboard" class="page active">
+
+            <!-- Schwab Connection Banner -->
+            <div id="schwab-banner" style="display:none;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.25);border-radius:0.75rem;padding:1rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+                <div>
+                    <p style="margin:0;font-weight:600;">Connect your Charles Schwab account</p>
+                    <p style="margin:0.25rem 0 0;font-size:0.875rem;color:#999;">Authorize once to automatically pull all your real trades, positions, and P&L.</p>
+                </div>
+                <button onclick="authenticateSchwab()" class="btn-primary" style="white-space:nowrap;"><i class="fas fa-plug"></i> Connect Schwab</button>
+            </div>
+
+            <div id="schwab-connected-bar" style="display:none;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:0.75rem;padding:0.75rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+                <span style="color:var(--profit);font-weight:600;font-size:0.875rem;"><i class="fas fa-check-circle"></i> Schwab Connected — <span id="schwab-account-info">fetching accounts...</span></span>
+                <div style="display:flex;gap:0.5rem;">
+                    <button onclick="fetchSchwabData(true)" class="btn-secondary" style="padding:0.4rem 0.9rem;font-size:0.8rem;"><i class="fas fa-sync"></i> Refresh</button>
+                    <button onclick="disconnectSchwab()" style="padding:0.4rem 0.9rem;font-size:0.8rem;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:0.5rem;color:#ef4444;cursor:pointer;">Disconnect</button>
+                </div>
+            </div>
+
             <!-- Stats Row -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
                 <div class="stat-card">
                     <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; text-transform: uppercase; font-weight: 600;">Total P&L</p>
-                    <p style="font-size: 2rem; font-weight: 700; margin: 0;"><span id="stat-pnl">+$12,500</span></p>
-                    <p style="color: var(--profit); font-size: 0.875rem; margin: 0.5rem 0 0 0;">+18.5% vs last year</p>
+                    <p style="font-size: 2rem; font-weight: 700; margin: 0;"><span id="stat-pnl">$0.00</span></p>
+                    <p id="stat-subtitle-pnl" style="color: #999; font-size: 0.875rem; margin: 0.5rem 0 0 0;">No trades recorded</p>
                 </div>
                 <div class="stat-card">
                     <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; text-transform: uppercase; font-weight: 600;">Win Rate</p>
-                    <p style="font-size: 2rem; font-weight: 700; margin: 0;"><span id="stat-winrate">68.4%</span></p>
-                    <p style="color: #999; font-size: 0.875rem; margin: 0.5rem 0 0 0;">22 wins / 35 trades</p>
+                    <p style="font-size: 2rem; font-weight: 700; margin: 0;"><span id="stat-winrate">0.0%</span></p>
+                    <p id="stat-subtitle-winrate" style="color: #999; font-size: 0.875rem; margin: 0.5rem 0 0 0;">0 wins / 0 trades</p>
                 </div>
                 <div class="stat-card">
-                    <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; text-transform: uppercase; font-weight: 600;">Avg Hold</p>
-                    <p style="font-size: 2rem; font-weight: 700; margin: 0;"><span id="stat-avghold">4.2d</span></p>
-                    <p style="color: #999; font-size: 0.875rem; margin: 0.5rem 0 0 0;">Swing trades</p>
+                    <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; text-transform: uppercase; font-weight: 600;">Total Trades</p>
+                    <p style="font-size: 2rem; font-weight: 700; margin: 0;"><span id="stat-avghold">0</span></p>
+                    <p style="color: #999; font-size: 0.875rem; margin: 0.5rem 0 0 0;">Recorded trades</p>
                 </div>
                 <div class="stat-card">
                     <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; text-transform: uppercase; font-weight: 600;">Sharpe Ratio</p>
-                    <p style="font-size: 2rem; font-weight: 700; margin: 0;"><span id="stat-sharpe">1.87</span></p>
+                    <p style="font-size: 2rem; font-weight: 700; margin: 0;"><span id="stat-sharpe">0.00</span></p>
                     <p style="color: #999; font-size: 0.875rem; margin: 0.5rem 0 0 0;">Risk-adjusted return</p>
                 </div>
             </div>
@@ -433,14 +438,6 @@
                             </tr>
                         </thead>
                         <tbody id="recent-trades">
-                            <tr>
-                                <td>2025-03-23</td>
-                                <td><strong>NVDA</strong></td>
-                                <td>Buy/Sell Equity</td>
-                                <td class="profit">+$450</td>
-                                <td class="profit">+8.2%</td>
-                                <td><span class="tag tag-swing">Swing</span></td>
-                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -449,11 +446,12 @@
 
         <!-- HISTORY TAB -->
         <div id="page-history" class="page">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
                 <h1 style="font-size: 1.75rem; font-weight: 700;">Trade History</h1>
-                <div style="display: flex; gap: 0.5rem;">
-                    <input type="text" id="search-trades" placeholder="Search symbol..." style="width: 200px;">
-                    <button onclick="exportCSV()" class="btn-primary" style="padding: 0.75rem 1.5rem;">Export CSV</button>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <input type="text" id="search-trades" placeholder="Search symbol, category..." style="width: 200px;">
+                    <button onclick="openAddTradeModal()" class="btn-primary" style="padding: 0.75rem 1.5rem;"><i class="fas fa-plus"></i> Add Trade</button>
+                    <button onclick="exportCSV()" class="btn-secondary" style="padding: 0.75rem 1.5rem;">Export CSV</button>
                 </div>
             </div>
 
@@ -474,26 +472,14 @@
                         </tr>
                     </thead>
                     <tbody id="trades-table">
-                        <tr>
-                            <td>2025-03-20</td>
-                            <td><strong>SCHD</strong></td>
-                            <td>Dividend</td>
-                            <td>100</td>
-                            <td>$32.10</td>
-                            <td>$32.10</td>
-                            <td class="profit">+$61</td>
-                            <td>-</td>
-                            <td><span class="tag tag-dividend">Dividend</span></td>
-                            <td>Q1 Distribution</td>
-                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div style="margin-top: 2rem; display: flex; justify-content: center; gap: 0.5rem;">
-                <button class="btn-secondary">← Prev</button>
-                <span style="padding: 0.75rem;">Page 1 of 5</span>
-                <button class="btn-secondary">Next →</button>
+            <div style="margin-top: 2rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
+                <button id="btn-prev" class="btn-secondary" onclick="prevPage()">← Prev</button>
+                <span id="page-info" style="padding: 0.75rem;">Page 1 of 1</span>
+                <button id="btn-next" class="btn-secondary" onclick="nextPage()">Next →</button>
             </div>
         </div>
 
@@ -503,15 +489,15 @@
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
                 <div class="glass" style="padding: 1.5rem;">
-                    <h3 style="font-weight: 600; margin-bottom: 1rem;">2026 Target Return</h3>
+                    <h3 style="font-weight: 600; margin-bottom: 1rem;">Annual Return Target</h3>
                     <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 1rem;">
                         <input type="number" id="goal-return" value="15" style="width: 100px; font-size: 1.5rem; font-weight: 700;">
                         <span style="font-size: 1rem;">%</span>
                     </div>
                     <div style="background: rgba(0, 212, 170, 0.1); border-radius: 0.5rem; overflow: hidden; height: 8px;">
-                        <div style="width: 92%; height: 100%; background: var(--accent);"></div>
+                        <div id="return-progress-bar" style="width: 0%; height: 100%; background: var(--accent); transition: width 0.5s;"></div>
                     </div>
-                    <p style="font-size: 0.875rem; color: #999; margin-top: 0.5rem;">Current: +18.5% (Goal: 92% achieved)</p>
+                    <p id="return-progress-text" style="font-size: 0.875rem; color: #999; margin-top: 0.5rem;">No data yet</p>
                 </div>
 
                 <div class="glass" style="padding: 1.5rem;">
@@ -521,9 +507,9 @@
                         <span style="font-size: 1rem;">%</span>
                     </div>
                     <div style="background: rgba(0, 212, 170, 0.1); border-radius: 0.5rem; overflow: hidden; height: 8px;">
-                        <div style="width: 105%; height: 100%; background: var(--profit);"></div>
+                        <div id="winrate-progress-bar" style="width: 0%; height: 100%; background: var(--profit); transition: width 0.5s;"></div>
                     </div>
-                    <p style="font-size: 0.875rem; color: #999; margin-top: 0.5rem;">Current: 68.4% (Goal: 105% achieved)</p>
+                    <p id="winrate-progress-text" style="font-size: 0.875rem; color: #999; margin-top: 0.5rem;">No data yet</p>
                 </div>
 
                 <div class="glass" style="padding: 1.5rem;">
@@ -533,9 +519,9 @@
                         <span style="font-size: 1rem;">% / month</span>
                     </div>
                     <div style="background: rgba(0, 212, 170, 0.1); border-radius: 0.5rem; overflow: hidden; height: 8px;">
-                        <div style="width: 78%; height: 100%; background: var(--accent);"></div>
+                        <div id="monthly-progress-bar" style="width: 0%; height: 100%; background: var(--accent); transition: width 0.5s;"></div>
                     </div>
-                    <p style="font-size: 0.875rem; color: #999; margin-top: 0.5rem;">Current: 0.78% / month (Goal: 78% achieved)</p>
+                    <p id="monthly-progress-text" style="font-size: 0.875rem; color: #999; margin-top: 0.5rem;">No data yet</p>
                 </div>
             </div>
 
@@ -573,19 +559,19 @@
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                     <div>
                         <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; font-weight: 600;">Profit Factor</p>
-                        <p style="font-size: 1.5rem; font-weight: 700; margin: 0;">2.14</p>
+                        <p id="report-profit-factor" style="font-size: 1.5rem; font-weight: 700; margin: 0;">—</p>
                     </div>
                     <div>
                         <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; font-weight: 600;">Expectancy</p>
-                        <p style="font-size: 1.5rem; font-weight: 700; margin: 0;">$357/trade</p>
+                        <p id="report-expectancy" style="font-size: 1.5rem; font-weight: 700; margin: 0;">—</p>
                     </div>
                     <div>
                         <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; font-weight: 600;">Max Drawdown</p>
-                        <p style="font-size: 1.5rem; font-weight: 700; margin: 0; color: var(--loss);">-8.3%</p>
+                        <p id="report-drawdown" style="font-size: 1.5rem; font-weight: 700; margin: 0; color: var(--loss);">—</p>
                     </div>
                     <div>
                         <p style="color: #999; font-size: 0.875rem; margin: 0 0 0.5rem 0; font-weight: 600;">Sharpe Ratio</p>
-                        <p style="font-size: 1.5rem; font-weight: 700; margin: 0;">1.87</p>
+                        <p id="report-sharpe" style="font-size: 1.5rem; font-weight: 700; margin: 0;">—</p>
                     </div>
                 </div>
             </div>
@@ -608,7 +594,7 @@
                 <div class="glass" style="padding: 1.5rem;">
                     <h3 style="font-weight: 600; margin-bottom: 1rem;">☁️ Google Drive Sync</h3>
                     <p style="color: #999; font-size: 0.875rem; margin-bottom: 1rem;">Automatically stores encrypted backups in your Google Drive.</p>
-                    <button onclick="syncDrive()" class="btn-primary">Start Drive Sync</button>
+                    <button onclick="syncDrive(this)" class="btn-primary">Start Drive Sync</button>
                     <p id="drive-status" style="color: #999; font-size: 0.875rem; margin-top: 1rem;">Status: Not synced</p>
                 </div>
             </div>
@@ -643,28 +629,26 @@
                 <p style="color: #999; margin-bottom: 2rem; font-size: 0.875rem;">Your credentials are stored locally in your browser. They're never sent to any server except the encrypted Google Cloud backend.</p>
                 
                 <div style="display: grid; gap: 1.5rem;">
-                    <!-- GOOGLE CLIENT ID -->
+                    <!-- SCHWAB CREDENTIALS -->
                     <div>
-                        <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Google Client ID</label>
-                        <p style="color: #999; font-size: 0.75rem; margin-bottom: 0.75rem;">Use this to sync data with Google Drive</p>
-                        <div style="display: grid; gap: 0.5rem;">
-                            <input type="text" id="modal-google-id" placeholder="Paste your Google Client ID" style="padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 0.5rem; color: #e0e0e0;">
-                            <button onclick="copyToClipboard('206086068161-os538lqofudoegdmt56up5dnpjsgi3sq.apps.googleusercontent.com')" style="padding: 0.5rem; background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.3); border-radius: 0.5rem; color: var(--accent); cursor: pointer; font-size: 0.75rem; font-weight: 600;">
-                                📋 Copy Google ID (click to copy to clipboard)
-                            </button>
-                        </div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Schwab App Key (Client ID)</label>
+                        <p style="color: #999; font-size: 0.75rem; margin-bottom: 0.5rem;">From <a href="https://developer.schwab.com" target="_blank" style="color:var(--accent);">developer.schwab.com</a> → My Apps → App Key</p>
+                        <input type="text" id="modal-schwab-id" placeholder="Your Schwab App Key">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Schwab Secret</label>
+                        <input type="password" id="modal-schwab-secret" placeholder="Your Schwab App Secret">
                     </div>
 
-                    <!-- SCHWAB CLIENT ID -->
+                    <!-- GOOGLE CLIENT ID -->
                     <div>
-                        <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Schwab Client ID</label>
-                        <p style="color: #999; font-size: 0.75rem; margin-bottom: 0.75rem;">Use this to connect your Schwab trading account</p>
-                        <div style="display: grid; gap: 0.5rem;">
-                            <input type="text" id="modal-schwab-id" placeholder="Paste your Schwab Client ID" style="padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 0.5rem; color: #e0e0e0;">
-                            <button onclick="copyToClipboard('JE9j2QOYALHoWM64Dz0W0JgJFLAz7OAoG0XAdaGcebimT8HP')" style="padding: 0.5rem; background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.3); border-radius: 0.5rem; color: var(--accent); cursor: pointer; font-size: 0.75rem; font-weight: 600;">
-                                📋 Copy Schwab ID (click to copy to clipboard)
-                            </button>
-                        </div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Google Client ID <span style="color:#999;font-weight:400;">(optional — Drive backup)</span></label>
+                        <input type="text" id="modal-google-id" placeholder="xxxx.apps.googleusercontent.com">
+                    </div>
+
+                    <div style="background:rgba(0,212,170,0.05);border:1px solid rgba(0,212,170,0.15);border-radius:0.5rem;padding:0.75rem;font-size:0.8rem;color:#999;">
+                        <strong style="color:#e0e0e0;">Redirect URI for Schwab portal:</strong><br>
+                        <code id="modal-redirect-uri" style="color:var(--accent);word-break:break-all;"></code>
                     </div>
                 </div>
 
@@ -681,14 +665,19 @@
 
             <div style="display: grid; gap: 1.5rem;">
                 <div class="glass" style="padding: 1.5rem;">
-                    <h3 style="font-weight: 600; margin-bottom: 1rem;">🔐 API Credentials</h3>
-                    <p style="color: #999; font-size: 0.875rem; margin-bottom: 1rem;">Manage your API credentials. They're stored locally in your browser for security.</p>
-                    <button onclick="openCredentialsModal()" class="btn-primary" style="width: 100%; margin-bottom: 1rem;">Edit Credentials</button>
-                    <button onclick="authenticateSchwab()" class="btn-secondary" style="background: rgba(0, 212, 170, 0.1); border-color: rgba(0, 212, 170, 0.3); width: 100%;">
-                        <i class="fas fa-lock"></i> Connect to Schwab Account
+                    <h3 style="font-weight: 600; margin-bottom: 1rem;">🔐 Schwab API Connection</h3>
+                    <p style="color: #999; font-size: 0.875rem; margin-bottom: 1rem;">Status: <span id="cred-status" style="color: #999;">Not configured</span></p>
+
+                    <button onclick="authenticateSchwab()" class="btn-primary" style="width: 100%; margin-bottom: 0.75rem;">
+                        <i class="fas fa-plug"></i> Connect / Reconnect Schwab Account
                     </button>
-                    <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,212,170,0.05); border-left: 3px solid var(--accent); border-radius: 0.5rem;">
-                        <p style="margin: 0; font-size: 0.875rem; color: #c0c0c0;"><strong>Status:</strong> <span id="cred-status" style="color: #999;">Not configured</span></p>
+                    <button onclick="openCredentialsModal()" class="btn-secondary" style="width: 100%; margin-bottom: 1rem;">
+                        <i class="fas fa-key"></i> Edit API Credentials
+                    </button>
+
+                    <div style="padding: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 0.5rem; font-size: 0.8rem; color: #999;">
+                        <strong style="color:#e0e0e0;">Your Redirect URI</strong> — must be registered in <a href="https://developer.schwab.com" target="_blank" style="color:var(--accent);">Schwab Developer Portal</a>:<br>
+                        <code id="settings-redirect-uri" style="color:var(--accent);word-break:break-all;display:block;margin-top:0.25rem;"></code>
                     </div>
                 </div>
 
@@ -726,562 +715,974 @@
         </footer>
 
     </main>
+
+    <!-- ADD TRADE MODAL -->
+    <div id="add-trade-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:1001;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+        <div class="glass-dark" style="width:90%;max-width:560px;padding:2rem;max-height:90vh;overflow-y:auto;">
+            <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:1.5rem;">+ Add Trade</h2>
+            <form id="add-trade-form" onsubmit="event.preventDefault(); saveTrade();">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                    <div>
+                        <label style="display:block;font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;">Date *</label>
+                        <input type="date" id="trade-date" required>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;">Symbol *</label>
+                        <input type="text" id="trade-symbol" placeholder="AAPL" required style="text-transform:uppercase;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;">Side *</label>
+                        <select id="trade-side" onchange="calcPnL()">
+                            <option>Long</option>
+                            <option>Short</option>
+                            <option>Dividend</option>
+                            <option>Options</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;">Category</label>
+                        <select id="trade-category">
+                            <option value="Swing">Swing</option>
+                            <option value="Options">Options</option>
+                            <option value="Dividend">Dividend</option>
+                            <option value="Scalp">Scalp</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;">Quantity</label>
+                        <input type="number" id="trade-qty" placeholder="100" min="0" step="any" oninput="calcPnL()">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;">Entry Price ($)</label>
+                        <input type="number" id="trade-entry" placeholder="0.00" min="0" step="any" oninput="calcPnL()">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;">Exit Price ($)</label>
+                        <input type="number" id="trade-exit" placeholder="0.00" min="0" step="any" oninput="calcPnL()">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;">P&amp;L ($)</label>
+                        <input type="number" id="trade-pnl" placeholder="Auto-calculated" step="any">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;">ROI (%)</label>
+                        <input type="number" id="trade-roi" placeholder="Auto-calculated" step="any">
+                    </div>
+                </div>
+                <div style="margin-top:1rem;">
+                    <label style="display:block;font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;">Notes</label>
+                    <textarea id="trade-notes" placeholder="Optional notes..." rows="2" style="resize:vertical;"></textarea>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1.5rem;">
+                    <button type="button" onclick="closeAddTradeModal()" style="padding:0.75rem;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:0.5rem;color:#e0e0e0;cursor:pointer;font-weight:600;">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Trade</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <!-- SCRIPTS -->
 <script>
 // ============================================================================
-// CONFIG & STATE MANAGEMENT
+// CONFIG & STATE
 // ============================================================================
-
-// Secure backend endpoint
-const BACKEND_URL = 'https://us-central1-my-stock-journal.cloudfunctions.net/quantumwheel-backend';
+// Schwab API endpoints — no backend needed, calls go directly to Schwab
+const SCHWAB_AUTH_URL  = 'https://api.schwabapi.com/v1/oauth/authorize';
+const SCHWAB_TOKEN_URL = 'https://api.schwabapi.com/v1/oauth/token';
+const SCHWAB_API_BASE  = 'https://api.schwabapi.com/trader/v1';
 
 const CONFIG = {
-    backendUrl: BACKEND_URL,
-    googleClientId: localStorage.getItem('google_client_id') || '',
-    schwabClientId: localStorage.getItem('schwab_client_id') || '',
-    scopes: ['https://www.googleapis.com/auth/drive.file'],
-    schwabScopes: 'PlaceTrades,AccountAccessRead'
+    googleClientId:    localStorage.getItem('google_client_id')     || '',
+    schwabClientId:    localStorage.getItem('schwab_client_id')     || '',
+    schwabClientSecret:localStorage.getItem('schwab_client_secret') || '',
+    scopes: ['https://www.googleapis.com/auth/drive.file']
 };
 
-let tradeData = {
-    trades: [],
-    goals: {},
-    lastSync: null
-};
-
-// Local IndexedDB setup
+let tradeData = { trades: [], goals: {}, lastSync: null };
 let db;
-const initDB = () => {
-    return new Promise((resolve) => {
-        const req = indexedDB.open('QuantumWheel', 1);
-        req.onerror = () => console.error('IndexedDB error');
-        req.onsuccess = () => {
-            db = req.result;
-            resolve(db);
-        };
-        req.onupgradeneeded = (e) => {
-            db = e.target.result;
-            if (!db.objectStoreNames.contains('trades')) {
-                db.createObjectStore('trades', { keyPath: 'id' });
-            }
-            if (!db.objectStoreNames.contains('backups')) {
-                db.createObjectStore('backups', { keyPath: 'timestamp' });
-            }
-        };
-    });
-};
+let chartInstances = {};
+let currentPage = 1;
+const ITEMS_PER_PAGE = 25;
+let autoRefreshTimer = null;
 
 // ============================================================================
-// UI FUNCTIONS
+// INDEXEDDB
 // ============================================================================
+const initDB = () => new Promise((resolve) => {
+    const req = indexedDB.open('QuantumWheel', 1);
+    req.onerror = () => resolve(null);
+    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onupgradeneeded = (e) => {
+        db = e.target.result;
+        if (!db.objectStoreNames.contains('trades'))
+            db.createObjectStore('trades', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('backups'))
+            db.createObjectStore('backups', { keyPath: 'timestamp' });
+    };
+});
 
-function saveSetup() {
-    const googleId = document.getElementById('google-client-id').value;
-    const schwabId = document.getElementById('schwab-client-id').value;
-
-    if (!googleId || !schwabId) {
-        alert('Please enter both Client IDs');
-        return;
-    }
-
-    // Test backend connectivity
-    fetch(`${BACKEND_URL}/health`)
-        .then(r => r.json())
-        .then(data => {
-            if (data.status === 'healthy') {
-                localStorage.setItem('google_client_id', googleId);
-                localStorage.setItem('schwab_client_id', schwabId);
-
-                CONFIG.googleClientId = googleId;
-                CONFIG.schwabClientId = schwabId;
-
-                document.getElementById('setup-modal').classList.remove('active');
-                document.querySelector('.sidebar').style.display = 'flex';
-                document.getElementById('menu-btn').style.display = 'block';
-
-                // Load from Drive if available
-                loadFromDrive();
-                showNotification('✓ Connected to secure backend', 'success');
-            }
-        })
-        .catch(err => {
-            console.error('Backend connection failed:', err);
-            alert('Backend not accessible. Check your internet connection.');
-        });
+// ============================================================================
+// UTILITIES
+// ============================================================================
+function formatCurrency(val) {
+    const n = parseFloat(val) || 0;
+    return (n >= 0 ? '+' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function showNotification(message, type = 'info') {
+    const el = document.createElement('div');
+    el.textContent = message;
+    el.style.cssText = `position:fixed;bottom:2rem;right:2rem;background:${type==='success'?'#10b981':type==='error'?'#ef4444':'#3b82f6'};color:white;padding:1rem 1.5rem;border-radius:0.5rem;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text)
+        .then(() => showNotification('✓ Copied!', 'success'))
+        .catch(() => showNotification('✗ Copy failed', 'error'));
+}
+
+let setupCompleted = false;
+
+function showSidebar(visible) {
+    const sidebar = document.querySelector('.sidebar');
+    const main = document.querySelector('main');
+    // Use 'block' — sidebar is a block container; its children manage their own flex layouts
+    sidebar.style.display = visible ? 'block' : 'none';
+    main.style.marginLeft = visible && window.innerWidth >= 768 ? '280px' : '0';
+}
+
+// ============================================================================
+// SETUP
+// ============================================================================
+function saveSetup() {
+    const schwabId     = document.getElementById('schwab-client-id').value.trim();
+    const schwabSecret = document.getElementById('schwab-client-secret').value.trim();
+    const googleId     = document.getElementById('google-client-id').value.trim();
+
+    if (schwabId)     { localStorage.setItem('schwab_client_id', schwabId);         CONFIG.schwabClientId = schwabId; }
+    if (schwabSecret) { localStorage.setItem('schwab_client_secret', schwabSecret); CONFIG.schwabClientSecret = schwabSecret; }
+    if (googleId)     { localStorage.setItem('google_client_id', googleId);         CONFIG.googleClientId = googleId; }
+
+    document.getElementById('setup-modal').classList.remove('active');
+    setupCompleted = true;
+    showSidebar(window.innerWidth >= 768);
+    document.getElementById('menu-btn').style.display = window.innerWidth < 768 ? 'block' : 'none';
+    updateCredentialStatus();
+    updateDashboardBanner();
+    updateDashboardStats();
+    setTimeout(() => initCharts(), 150);
+
+    // Auto-launch Schwab OAuth if credentials provided
+    if (schwabId && schwabSecret) {
+        showNotification('✓ Credentials saved — launching Schwab login...', 'success');
+        setTimeout(() => authenticateSchwab(), 1000);
+    } else {
+        showNotification('✓ Setup saved', 'success');
+    }
+}
+
+function skipSetup() {
+    document.getElementById('setup-modal').classList.remove('active');
+    setupCompleted = true;
+    showSidebar(window.innerWidth >= 768);
+    document.getElementById('menu-btn').style.display = window.innerWidth < 768 ? 'block' : 'none';
+    updateDashboardBanner();
+    updateDashboardStats();
+    setTimeout(() => initCharts(), 150);
+}
+
+// ============================================================================
+// NAVIGATION
+// ============================================================================
 function showPage(pageName) {
-    // Hide all pages
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    
-    // Show selected page
-    document.getElementById(`page-${pageName}`)?.classList.add('active');
+    document.getElementById('page-' + pageName)?.classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.nav-btn[data-page="' + pageName + '"]')?.classList.add('active');
 
-    // Update nav
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.closest('.nav-btn')?.classList.add('active');
-
-    // Initialize charts if needed
     if (pageName === 'dashboard') {
-        setTimeout(() => {
-            initCharts();
-        }, 100);
+        updateDashboardStats();
+        renderRecentTrades();
+        setTimeout(() => initCharts(), 100);
     } else if (pageName === 'goals') {
-        setTimeout(() => {
-            initGoalsChart();
-        }, 100);
+        loadGoalsUI();
+        setTimeout(() => initGoalsChart(), 100);
+    } else if (pageName === 'history') {
+        currentPage = 1;
+        renderHistoryTable();
+    } else if (pageName === 'reports') {
+        updateReportsMetrics();
     }
 }
 
 function toggleSidebar() {
     const sidebar = document.querySelector('.sidebar');
-    sidebar.style.display = sidebar.style.display === 'flex' ? 'none' : 'flex';
+    const visible = sidebar.style.display !== 'flex';
+    showSidebar(visible);
 }
 
 // ============================================================================
-// DATA SYNC & API INTEGRATION
+// DATA RENDERING
 // ============================================================================
-
-function syncData() {
-    const btn = event.target.closest('button');
-    btn.innerHTML = '<i class="fas fa-spinner-third"></i> Syncing...';
-    btn.disabled = true;
-
-    Promise.all([
-        fetchSchwabData(),
-        loadFromDrive()
-    ]).then(() => {
-        btn.innerHTML = '<i class="fas fa-sync"></i> Sync';
-        btn.disabled = false;
-        document.getElementById('last-sync').textContent = new Date().toLocaleTimeString();
-        showNotification('✓ Data synced successfully', 'success');
-    }).catch(err => {
-        console.error('Sync error:', err);
-        btn.innerHTML = '<i class="fas fa-sync"></i> Sync';
-        btn.disabled = false;
-        showNotification('✗ Sync failed. Check console.', 'error');
-    });
+function renderRecentTrades() {
+    const tbody = document.getElementById('recent-trades');
+    const recent = [...tradeData.trades].reverse().slice(0, 10);
+    if (recent.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;padding:2rem;">No trades yet — add your first trade in Trade History.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = recent.map(t => {
+        const pnl = parseFloat(t.pnl) || 0;
+        const roi = parseFloat(t.roi) || 0;
+        const cat = (t.category || 'swing').toLowerCase();
+        return `<tr>
+            <td>${t.date || '—'}</td>
+            <td><strong>${t.symbol || '—'}</strong></td>
+            <td>${t.side || '—'}</td>
+            <td class="${pnl >= 0 ? 'profit' : 'loss'}">${formatCurrency(pnl)}</td>
+            <td class="${roi >= 0 ? 'profit' : 'loss'}">${t.roi ? parseFloat(t.roi).toFixed(2) + '%' : '—'}</td>
+            <td><span class="tag tag-${cat}">${t.category || 'Swing'}</span></td>
+        </tr>`;
+    }).join('');
 }
 
-async function fetchSchwabData() {
-    // Check if we have a session token
-    const sessionToken = localStorage.getItem('schwab_session_token');
-    
-    if (!sessionToken) {
-        console.log('No Schwab session. User must authenticate.');
+function renderHistoryTable() {
+    const searchTerm = (document.getElementById('search-trades').value || '').toLowerCase();
+    const filtered = tradeData.trades.filter(t =>
+        !searchTerm ||
+        (t.symbol || '').toLowerCase().includes(searchTerm) ||
+        (t.category || '').toLowerCase().includes(searchTerm) ||
+        (t.notes || '').toLowerCase().includes(searchTerm) ||
+        (t.side || '').toLowerCase().includes(searchTerm)
+    );
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+    if (currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const pageTrades = filtered.slice(start, start + ITEMS_PER_PAGE);
+
+    const tbody = document.getElementById('trades-table');
+    if (pageTrades.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#999;padding:2rem;">No trades found. Add trades using the "Add Trade" button above.</td></tr>';
+    } else {
+        tbody.innerHTML = pageTrades.map((t, i) => {
+            const pnl = parseFloat(t.pnl) || 0;
+            const roi = parseFloat(t.roi) || 0;
+            const cat = (t.category || 'swing').toLowerCase();
+            return `<tr>
+                <td>${t.date || '—'}</td>
+                <td><strong>${t.symbol || '—'}</strong></td>
+                <td>${t.side || '—'}</td>
+                <td>${t.quantity || '—'}</td>
+                <td>${t.entryPrice ? '$' + parseFloat(t.entryPrice).toFixed(2) : '—'}</td>
+                <td>${t.exitPrice ? '$' + parseFloat(t.exitPrice).toFixed(2) : '—'}</td>
+                <td class="${pnl >= 0 ? 'profit' : 'loss'}">${formatCurrency(pnl)}</td>
+                <td class="${roi >= 0 ? 'profit' : 'loss'}">${t.roi ? parseFloat(t.roi).toFixed(2) + '%' : '—'}</td>
+                <td><span class="tag tag-${cat}">${t.category || 'Swing'}</span></td>
+                <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(t.notes||'').replace(/"/g,'&quot;')}">${t.notes || '—'}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    document.getElementById('page-info').textContent = `Page ${currentPage} of ${totalPages}`;
+    document.getElementById('btn-prev').disabled = currentPage <= 1;
+    document.getElementById('btn-next').disabled = currentPage >= totalPages;
+}
+
+function prevPage() { if (currentPage > 1) { currentPage--; renderHistoryTable(); } }
+function nextPage() { currentPage++; renderHistoryTable(); }
+function filterTrades() { currentPage = 1; renderHistoryTable(); }
+
+// ============================================================================
+// DASHBOARD STATS
+// ============================================================================
+function updateDashboardStats() {
+    const trades = tradeData.trades;
+    if (trades.length === 0) {
+        document.getElementById('stat-pnl').textContent = '$0.00';
+        document.getElementById('stat-pnl').className = '';
+        document.getElementById('stat-winrate').textContent = '0.0%';
+        document.getElementById('stat-avghold').textContent = '0';
+        document.getElementById('stat-sharpe').textContent = '0.00';
+        document.getElementById('stat-subtitle-pnl').textContent = 'No trades recorded';
+        document.getElementById('stat-subtitle-pnl').style.color = '#999';
+        document.getElementById('stat-subtitle-winrate').textContent = '0 wins / 0 trades';
         return;
     }
 
-    try {
-        // Call backend proxy instead of direct API
-        const response = await fetch(`${BACKEND_URL}/api/schwab?endpoint=/trader/v1/accounts`, {
-            method: 'GET',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionToken}`
-            }
-        });
+    const totalPnl = trades.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0);
+    const wins = trades.filter(t => parseFloat(t.pnl) > 0);
+    const winRate = (wins.length / trades.length * 100).toFixed(1);
 
-        if (response.status === 401) {
-            console.log('Session expired. Re-authenticate needed.');
-            localStorage.removeItem('schwab_session_token');
-            return;
-        }
+    const pnlEl = document.getElementById('stat-pnl');
+    pnlEl.textContent = formatCurrency(totalPnl);
+    pnlEl.className = totalPnl >= 0 ? 'profit' : 'loss';
 
-        const accounts = await response.json();
-        console.log('Schwab accounts (via backend):', accounts);
-        // Process and store accounts data
-        if (accounts && accounts.accounts) {
-            // Update UI with account data
-            updateAccountsUI(accounts.accounts);
-        }
-    } catch (err) {
-        console.error('Schwab data fetch error:', err);
+    const subPnl = document.getElementById('stat-subtitle-pnl');
+    subPnl.textContent = trades.length + ' total trades';
+    subPnl.style.color = '#999';
+
+    document.getElementById('stat-winrate').textContent = winRate + '%';
+    document.getElementById('stat-subtitle-winrate').textContent = `${wins.length} wins / ${trades.length} trades`;
+    document.getElementById('stat-avghold').textContent = trades.length;
+
+    const pnls = trades.map(t => parseFloat(t.pnl) || 0);
+    if (pnls.length > 1) {
+        const mean = pnls.reduce((s, v) => s + v, 0) / pnls.length;
+        const std = Math.sqrt(pnls.reduce((s, v) => s + (v - mean) ** 2, 0) / pnls.length);
+        document.getElementById('stat-sharpe').textContent = std > 0 ? (mean / std * Math.sqrt(252)).toFixed(2) : '0.00';
     }
-}
 
-// Helper function to update UI with account data
-function updateAccountsUI(accounts) {
-    // Placeholder for UI update logic
-    console.log('Updating UI with accounts:', accounts);
+    renderRecentTrades();
 }
 
 // ============================================================================
-// SCHWAB OAUTH AUTHENTICATION (Via Secure Backend)
+// REPORTS
 // ============================================================================
+function updateReportsMetrics() {
+    const trades = tradeData.trades;
+    if (trades.length === 0) {
+        ['report-profit-factor','report-expectancy','report-drawdown','report-sharpe'].forEach(id => {
+            document.getElementById(id).textContent = '—';
+        });
+        return;
+    }
+    const wins = trades.filter(t => parseFloat(t.pnl) > 0);
+    const losses = trades.filter(t => parseFloat(t.pnl) < 0);
+    const grossWin = wins.reduce((s, t) => s + parseFloat(t.pnl), 0);
+    const grossLoss = Math.abs(losses.reduce((s, t) => s + parseFloat(t.pnl), 0));
+    const pf = grossLoss > 0 ? (grossWin / grossLoss).toFixed(2) : '∞';
+    const exp = (trades.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0) / trades.length).toFixed(0);
+
+    const pnls = trades.map(t => parseFloat(t.pnl) || 0);
+    let maxDD = 0, peak = 0, cum = 0;
+    pnls.forEach(p => { cum += p; if (cum > peak) peak = cum; const dd = peak > 0 ? (peak - cum) / peak : 0; if (dd > maxDD) maxDD = dd; });
+
+    const mean = pnls.reduce((s, v) => s + v, 0) / pnls.length;
+    const std = Math.sqrt(pnls.reduce((s, v) => s + (v - mean) ** 2, 0) / pnls.length);
+    const sharpe = std > 0 ? (mean / std * Math.sqrt(252)).toFixed(2) : '0.00';
+
+    document.getElementById('report-profit-factor').textContent = pf;
+    document.getElementById('report-expectancy').textContent = '$' + exp + '/trade';
+    document.getElementById('report-drawdown').textContent = '-' + (maxDD * 100).toFixed(1) + '%';
+    document.getElementById('report-sharpe').textContent = sharpe;
+}
+
+// ============================================================================
+// ADD TRADE
+// ============================================================================
+function openAddTradeModal() {
+    document.getElementById('add-trade-modal').style.display = 'flex';
+    document.getElementById('trade-date').value = new Date().toISOString().split('T')[0];
+}
+
+function closeAddTradeModal() {
+    document.getElementById('add-trade-modal').style.display = 'none';
+    document.getElementById('add-trade-form').reset();
+}
+
+function calcPnL() {
+    const qty = parseFloat(document.getElementById('trade-qty').value) || 0;
+    const entry = parseFloat(document.getElementById('trade-entry').value) || 0;
+    const exit = parseFloat(document.getElementById('trade-exit').value) || 0;
+    const side = document.getElementById('trade-side').value;
+    if (!qty || !entry || !exit) return;
+    const dir = side === 'Short' ? -1 : 1;
+    const pnl = side === 'Dividend' ? qty * exit : dir * qty * (exit - entry);
+    const roi = entry > 0 ? (side === 'Dividend' ? (exit / entry * 100) : dir * ((exit - entry) / entry) * 100) : 0;
+    document.getElementById('trade-pnl').value = pnl.toFixed(2);
+    document.getElementById('trade-roi').value = roi.toFixed(2);
+}
+
+function saveTrade() {
+    const date = document.getElementById('trade-date').value;
+    const symbol = document.getElementById('trade-symbol').value.trim().toUpperCase();
+    const side = document.getElementById('trade-side').value;
+    if (!date || !symbol) { showNotification('✗ Date and symbol are required', 'error'); return; }
+
+    const trade = {
+        id: Date.now().toString(),
+        date, symbol, side,
+        quantity: document.getElementById('trade-qty').value || '',
+        entryPrice: document.getElementById('trade-entry').value || '',
+        exitPrice: document.getElementById('trade-exit').value || '',
+        pnl: document.getElementById('trade-pnl').value || '0',
+        roi: document.getElementById('trade-roi').value || '',
+        category: document.getElementById('trade-category').value,
+        notes: document.getElementById('trade-notes').value.trim()
+    };
+
+    tradeData.trades.push(trade);
+    localStorage.setItem('quantum_trades', JSON.stringify(tradeData));
+    closeAddTradeModal();
+    renderHistoryTable();
+    updateDashboardStats();
+    rebuildCharts();
+    showNotification('✓ Trade added', 'success');
+}
+
+// ============================================================================
+// SCHWAB OAUTH — DIRECT BROWSER FLOW (NO BACKEND NEEDED)
+// ============================================================================
+
+// --- PKCE helpers ---
+function generateRandomString(len) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    const buf = new Uint8Array(len);
+    crypto.getRandomValues(buf);
+    return Array.from(buf, v => chars[v % chars.length]).join('');
+}
+
+async function sha256base64url(str) {
+    const data = new TextEncoder().encode(str);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function getRedirectUri() {
+    // Use the current page URL minus any query/hash as the redirect URI
+    return window.location.origin + window.location.pathname;
+}
 
 async function authenticateSchwab() {
+    if (!CONFIG.schwabClientId || !CONFIG.schwabClientSecret) {
+        showNotification('✗ Enter your Schwab App Key and Secret in Settings first', 'error');
+        showPage('settings');
+        return;
+    }
+
+    const verifier   = generateRandomString(128);
+    const challenge  = await sha256base64url(verifier);
+    const state      = generateRandomString(32);
+
+    sessionStorage.setItem('pkce_verifier', verifier);
+    sessionStorage.setItem('oauth_state', state);
+    sessionStorage.setItem('oauth_redirect', getRedirectUri());
+
+    const params = new URLSearchParams({
+        response_type:         'code',
+        client_id:             CONFIG.schwabClientId,
+        redirect_uri:          getRedirectUri(),
+        scope:                 'readonly',
+        state:                 state,
+        code_challenge:        challenge,
+        code_challenge_method: 'S256'
+    });
+
+    window.location.href = SCHWAB_AUTH_URL + '?' + params.toString();
+}
+
+async function handleSchwabCallback() {
+    const params = new URLSearchParams(window.location.search);
+    const code  = params.get('code');
+    const state = params.get('state');
+    if (!code) return false;
+
+    // Clean the URL immediately
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    if (state !== sessionStorage.getItem('oauth_state')) {
+        showNotification('✗ OAuth state mismatch — possible CSRF. Please try again.', 'error');
+        return false;
+    }
+
+    showNotification('🔄 Exchanging auth code for tokens...', 'info');
+
+    const verifier     = sessionStorage.getItem('pkce_verifier');
+    const redirectUri  = sessionStorage.getItem('oauth_redirect') || getRedirectUri();
+    sessionStorage.removeItem('pkce_verifier');
+    sessionStorage.removeItem('oauth_state');
+    sessionStorage.removeItem('oauth_redirect');
+
+    // Schwab requires Basic Auth (client_id:client_secret) for token exchange
+    const credentials = btoa(CONFIG.schwabClientId + ':' + CONFIG.schwabClientSecret);
+
     try {
-        // Step 1: Get authorization URL from backend
-        const startResponse = await fetch(`${BACKEND_URL}/oauth/schwab/start`, {
-            method: 'GET',
-            credentials: 'include'
+        const body = new URLSearchParams({
+            grant_type:    'authorization_code',
+            code:          code,
+            redirect_uri:  redirectUri,
+            code_verifier: verifier
         });
 
-        if (!startResponse.ok) {
-            throw new Error('Failed to start OAuth flow');
+        const resp = await fetch(SCHWAB_TOKEN_URL, {
+            method:  'POST',
+            headers: {
+                'Content-Type':  'application/x-www-form-urlencoded',
+                'Authorization': 'Basic ' + credentials
+            },
+            body: body.toString()
+        });
+
+        if (!resp.ok) {
+            const err = await resp.text();
+            throw new Error('Token exchange failed: ' + err);
         }
 
-        const {authorization_url, state} = await startResponse.json();
+        const tokens = await resp.json();
+        localStorage.setItem('schwab_access_token',  tokens.access_token);
+        localStorage.setItem('schwab_refresh_token', tokens.refresh_token || '');
+        // Tokens expire in tokens.expires_in seconds
+        localStorage.setItem('schwab_token_expiry', Date.now() + (tokens.expires_in || 1800) * 1000);
 
-        // Store state for verification on callback
-        sessionStorage.setItem('oauth_state', state);
-
-        // Step 2: Redirect to Schwab login
-        window.location.href = authorization_url;
+        showNotification('✓ Schwab connected! Fetching your trades...', 'success');
+        updateCredentialStatus();
+        await fetchSchwabData(true);
+        return true;
     } catch (err) {
-        console.error('Schwab OAuth error:', err);
-        showNotification('Failed to initiate Schwab login', 'error');
+        console.error('Token exchange error:', err);
+        showNotification('✗ Schwab auth failed: ' + err.message, 'error');
+        return false;
     }
 }
 
-// Handle OAuth callback from backend
-function handleSchwabCallback() {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const state = params.get('state');
+async function refreshSchwabToken() {
+    const refreshToken = localStorage.getItem('schwab_refresh_token');
+    if (!refreshToken || !CONFIG.schwabClientId || !CONFIG.schwabClientSecret) return false;
 
-    if (!code || !state) {
-        console.log('No OAuth code in URL');
+    const credentials = btoa(CONFIG.schwabClientId + ':' + CONFIG.schwabClientSecret);
+    try {
+        const resp = await fetch(SCHWAB_TOKEN_URL, {
+            method:  'POST',
+            headers: {
+                'Content-Type':  'application/x-www-form-urlencoded',
+                'Authorization': 'Basic ' + credentials
+            },
+            body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken }).toString()
+        });
+        if (!resp.ok) throw new Error('Refresh failed');
+        const tokens = await resp.json();
+        localStorage.setItem('schwab_access_token', tokens.access_token);
+        localStorage.setItem('schwab_token_expiry', Date.now() + (tokens.expires_in || 1800) * 1000);
+        if (tokens.refresh_token) localStorage.setItem('schwab_refresh_token', tokens.refresh_token);
+        return true;
+    } catch (e) {
+        console.error('Token refresh failed:', e);
+        return false;
+    }
+}
+
+async function getSchwabToken() {
+    const expiry = parseInt(localStorage.getItem('schwab_token_expiry') || '0');
+    // Refresh if expiring in next 5 minutes
+    if (expiry && Date.now() > expiry - 300000) {
+        const ok = await refreshSchwabToken();
+        if (!ok) { disconnectSchwab(); return null; }
+    }
+    return localStorage.getItem('schwab_access_token') || null;
+}
+
+function disconnectSchwab() {
+    ['schwab_access_token','schwab_refresh_token','schwab_token_expiry'].forEach(k => localStorage.removeItem(k));
+    updateCredentialStatus();
+    updateDashboardBanner();
+    showNotification('Schwab disconnected', 'info');
+}
+
+// ============================================================================
+// SCHWAB DATA FETCHING & PARSING
+// ============================================================================
+async function fetchSchwabData(showUI = false) {
+    const token = await getSchwabToken();
+    if (!token) {
+        if (showUI) updateDashboardBanner();
         return;
     }
 
-    // Verify state matches
-    const savedState = sessionStorage.getItem('oauth_state');
-    if (state !== savedState) {
-        console.error('State mismatch - CSRF attack?');
-        return;
-    }
+    if (showUI) showNotification('🔄 Fetching Schwab data...', 'info');
 
-    // Exchange code for token via backend
-    fetch(`${BACKEND_URL}/oauth/schwab/callback`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({code: code, state: state})
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            // Store session token (backend uses secure cookies)
-            localStorage.setItem('schwab_session_token', data.access_token);
-            sessionStorage.removeItem('oauth_state');
-            showNotification('\u2713 Schwab authenticated successfully', 'success');
-            // Clean up URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-            // Fetch data
-            fetchSchwabData();
+    try {
+        // 1. Get accounts list
+        const accountsResp = await fetch(SCHWAB_API_BASE + '/accounts?fields=positions', {
+            headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
+        });
+
+        if (accountsResp.status === 401) {
+            const refreshed = await refreshSchwabToken();
+            if (!refreshed) { disconnectSchwab(); return; }
+            return fetchSchwabData(showUI); // retry
         }
-    })
-    .catch(err => {
-        console.error('OAuth callback error:', err);
-        showNotification('Authentication failed', 'error');
+
+        if (!accountsResp.ok) throw new Error('Accounts fetch failed: ' + accountsResp.status);
+        const accounts = await accountsResp.json();
+
+        // Show account info in banner
+        const accountNums = accounts.map(a => {
+            const num = a.securitiesAccount?.accountNumber || a.accountNumber || '';
+            return '••••' + num.toString().slice(-4);
+        }).join(', ');
+        const infoEl = document.getElementById('schwab-account-info');
+        if (infoEl) infoEl.textContent = accounts.length + ' account(s): ' + accountNums;
+
+        // 2. Fetch transactions for each account (past 2 years)
+        const endDate   = new Date().toISOString().split('T')[0];
+        const startDate = new Date(Date.now() - 730 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        let allTransactions = [];
+
+        for (const account of accounts) {
+            const acctNum = account.securitiesAccount?.accountNumber || account.accountNumber;
+            if (!acctNum) continue;
+
+            const txResp = await fetch(
+                `${SCHWAB_API_BASE}/accounts/${encodeURIComponent(acctNum)}/transactions?types=TRADE,DIVIDEND_OR_INTEREST,RECEIVE_AND_DELIVER&startDate=${startDate}&endDate=${endDate}`,
+                { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' } }
+            );
+
+            if (txResp.ok) {
+                const txList = await txResp.json();
+                if (Array.isArray(txList)) allTransactions = allTransactions.concat(txList);
+            }
+        }
+
+        // 3. Parse into our trade format
+        parseAndMergeTransactions(allTransactions);
+
+        document.getElementById('last-sync').textContent = new Date().toLocaleTimeString();
+        updateDashboardBanner();
+        if (showUI) showNotification(`✓ Loaded ${allTransactions.length} transactions from Schwab`, 'success');
+
+    } catch (err) {
+        console.error('Schwab data fetch error:', err);
+        if (showUI) showNotification('✗ Schwab fetch failed: ' + err.message, 'error');
+    }
+}
+
+function parseAndMergeTransactions(transactions) {
+    const existingIds = new Set(tradeData.trades.map(t => t.id));
+    let added = 0;
+
+    transactions.forEach(tx => {
+        const txId = (tx.activityId || tx.transactionId || '').toString();
+        if (txId && existingIds.has(txId)) return; // already imported
+
+        const item      = (tx.transferItems || tx.transactionItem ? [tx.transactionItem] : [])[0]
+                          || (tx.transferItems || [])[0] || {};
+        const instrument= item.instrument || {};
+        const symbol    = instrument.symbol || instrument.underlyingSymbol || '';
+        if (!symbol && tx.type !== 'DIVIDEND_OR_INTEREST') return; // skip non-instrument rows
+
+        const pnl       = parseFloat(tx.netAmount || 0);
+        const txDate    = (tx.tradeDate || tx.time || '').split('T')[0];
+        const assetType = instrument.assetType || 'EQUITY';
+        const qty       = Math.abs(parseFloat(item.amount || item.quantity || 0));
+        const price     = parseFloat(item.price || 0);
+        const posFx     = item.positionEffect || '';
+
+        let side, category;
+        if (tx.type === 'DIVIDEND_OR_INTEREST') {
+            side = 'Dividend'; category = 'Dividend';
+        } else if (assetType === 'OPTION') {
+            side = posFx === 'CLOSING' ? 'Close' : 'Open'; category = 'Options';
+        } else {
+            side = pnl < 0 ? 'Buy' : 'Sell'; category = 'Swing';
+        }
+
+        const trade = {
+            id:         txId || Date.now().toString() + Math.random(),
+            date:       txDate,
+            symbol:     symbol || tx.description?.split(' ')[2] || '?',
+            side:       side,
+            category:   category,
+            quantity:   qty || '',
+            entryPrice: side === 'Buy' || side === 'Open'  ? price : '',
+            exitPrice:  side === 'Sell' || side === 'Close' ? price : '',
+            pnl:        pnl.toFixed(2),
+            roi:        (qty && price && pnl) ? ((pnl / (qty * price)) * 100).toFixed(2) : '',
+            notes:      tx.description || ''
+        };
+
+        tradeData.trades.push(trade);
+        existingIds.add(txId);
+        added++;
     });
+
+    if (added > 0) {
+        // Sort trades by date
+        tradeData.trades.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        localStorage.setItem('quantum_trades', JSON.stringify(tradeData));
+        updateDashboardStats();
+        renderRecentTrades();
+        renderHistoryTable();
+        rebuildCharts();
+        showNotification(`✓ ${added} new transactions imported`, 'success');
+    }
+}
+
+// ============================================================================
+// DATA SYNC (header Sync button)
+// ============================================================================
+function syncData(btn) {
+    if (!btn) btn = document.getElementById('sync-btn');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;vertical-align:middle;margin-right:4px;"></span> Syncing...';
+    btn.disabled = true;
+    fetchSchwabData(true).finally(() => {
+        btn.innerHTML = orig;
+        btn.disabled = false;
+    });
+}
+
+// Dashboard banner showing connect/connected state
+function updateDashboardBanner() {
+    const hasToken = !!localStorage.getItem('schwab_access_token');
+    const hasCreds = !!(CONFIG.schwabClientId && CONFIG.schwabClientSecret);
+    const banner  = document.getElementById('schwab-banner');
+    const connBar = document.getElementById('schwab-connected-bar');
+    if (!banner || !connBar) return;
+    if (hasToken) {
+        banner.style.display  = 'none';
+        connBar.style.display = 'flex';
+    } else {
+        banner.style.display  = hasCreds ? 'flex' : 'flex'; // show connect prompt either way
+        connBar.style.display = 'none';
+    }
 }
 
 async function loadFromDrive() {
     if (!CONFIG.googleClientId) return;
-
     try {
-        await gapi.client.drive.files.list({
-            spaces: 'appDataFolder',
-            fields: 'files(id, name, modifiedTime)',
-            pageSize: 10,
+        if (!window.gapi || !gapi.client || !gapi.client.drive) return;
+        const r = await gapi.client.drive.files.list({
+            spaces: 'appDataFolder', fields: 'files(id, name, modifiedTime)', pageSize: 10,
             q: "name='trades.json' or name='goals.json'"
-        }).then(response => {
-            console.log('Drive files:', response.result.files);
-            // Download and parse files
         });
-    } catch (err) {
-        console.error('Drive load error:', err);
-    }
+        console.log('Drive files:', r.result.files);
+    } catch (e) { console.error('Drive load:', e); }
 }
-
-// ============================================================================
-// AUTHENTICATION
-// ============================================================================
 
 function openAuthModal() {
-    alert('Authentication flows:\n\n1. Google Drive: Click "Start Drive Sync"\n2. Schwab: Visit settings to authorize via OAuth');
-}
-
-async function initDriveAuth() {
-    try {
-        await gapi.client.init({
-            apiKey: 'YOUR_API_KEY',
-            clientId: CONFIG.googleClientId,
-            scope: CONFIG.scopes.join(' '),
-            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
-        });
-
-        const auth = gapi.auth2.getAuthInstance();
-        if (!auth.isSignedIn.get()) {
-            await auth.signIn();
-        }
-    } catch (err) {
-        console.error('Drive auth failed:', err);
+    if (CONFIG.schwabClientId && CONFIG.schwabClientSecret) {
+        authenticateSchwab();
+    } else {
+        showNotification('Enter Schwab credentials in Settings first', 'error');
+        showPage('settings');
     }
 }
 
 // ============================================================================
-// DATA EXPORT & IMPORT
+// EXPORT & IMPORT
 // ============================================================================
-
 function exportCSV() {
-    const rows = [['Date', 'Symbol', 'Side', 'Qty', 'Entry', 'Exit', 'P&L', 'ROI', 'Category']];
-    
-    // Add data rows
-    tradeData.trades.forEach(t => {
-        rows.push([
-            t.date,
-            t.symbol,
-            t.side,
-            t.quantity,
-            t.entryPrice,
-            t.exitPrice,
-            t.pnl,
-            t.roi,
-            t.category
-        ]);
-    });
-
-    const csv = rows.map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `trades_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
+    if (tradeData.trades.length === 0) { showNotification('No trades to export', 'error'); return; }
+    const rows = [['Date','Symbol','Side','Qty','Entry','Exit','P&L','ROI','Category','Notes']];
+    tradeData.trades.forEach(t => rows.push([t.date,t.symbol,t.side,t.quantity,t.entryPrice,t.exitPrice,t.pnl,t.roi,t.category,(t.notes||'').replace(/,/g,' ')]));
+    const csv = rows.map(r => r.map(v => `"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv],{type:'text/csv'})), download: `trades_${new Date().toISOString().split('T')[0]}.csv` });
+    a.click(); URL.revokeObjectURL(a.href);
 }
 
 function backupLocal() {
-    const data = JSON.stringify(tradeData, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `trades_backup_${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([JSON.stringify(tradeData,null,2)],{type:'application/json'})), download: `trades_backup_${new Date().toISOString().split('T')[0]}.json` });
+    a.click(); URL.revokeObjectURL(a.href);
+    showNotification('✓ Backup downloaded', 'success');
 }
 
 function backupExcel() {
+    if (tradeData.trades.length === 0) { showNotification('No trades to export', 'error'); return; }
     const ws = XLSX.utils.json_to_sheet(tradeData.trades);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Trades');
     XLSX.writeFile(wb, `trades_backup_${new Date().toISOString().split('T')[0]}.xlsx`);
+    showNotification('✓ Excel exported', 'success');
+}
+
+function importBackup() {
+    const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.json' });
+    input.onchange = (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const imported = JSON.parse(ev.target.result);
+                if (!imported.trades || !Array.isArray(imported.trades)) { showNotification('✗ Invalid backup format', 'error'); return; }
+                tradeData = imported;
+                localStorage.setItem('quantum_trades', JSON.stringify(tradeData));
+                updateDashboardStats(); renderHistoryTable(); rebuildCharts();
+                showNotification(`✓ Imported ${tradeData.trades.length} trades`, 'success');
+            } catch { showNotification('✗ Invalid file', 'error'); }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
 }
 
 // ============================================================================
-// PDF GENERATION
+// PDF & REPORTS
 // ============================================================================
-
 function generatePDFReport() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
+    const trades = tradeData.trades;
+    const totalPnl = trades.reduce((s, t) => s + (parseFloat(t.pnl)||0), 0);
+    const wins = trades.filter(t => parseFloat(t.pnl) > 0);
+    const winRate = trades.length ? (wins.length / trades.length * 100).toFixed(1) : 0;
 
-    doc.setFontSize(16);
-    doc.text('Trading Performance Report', 10, 10);
-    
-    doc.setFontSize(12);
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 10, 20);
-    
-    // Add content
+    doc.setFontSize(18); doc.text('QuantumWheel Trading Report', 10, 15);
+    doc.setFontSize(10); doc.text('Generated: ' + new Date().toLocaleDateString(), 10, 25);
+    doc.setLineWidth(0.3); doc.line(10, 30, 200, 30);
+    doc.setFontSize(12); doc.text('Summary', 10, 40);
     doc.setFontSize(10);
-    let y = 30;
-    doc.text(`Total P&L: $12,500 (+18.5%)`, 10, y);
-    y += 10;
-    doc.text(`Win Rate: 68.4% (22/35)`, 10, y);
-    y += 10;
-    doc.text(`Profit Factor: 2.14`, 10, y);
-    
-    doc.save('trading_report.pdf');
+    doc.text('Total P&L: ' + formatCurrency(totalPnl), 10, 50);
+    doc.text('Win Rate: ' + winRate + '% (' + wins.length + '/' + trades.length + ' trades)', 10, 58);
+
+    if (trades.length > 0) {
+        let y = 72;
+        doc.setFontSize(12); doc.text('Trade Log (last 30)', 10, y); y += 8;
+        doc.setFontSize(8);
+        doc.text('Date        Symbol   Side       P&L', 10, y); y += 6;
+        trades.slice(-30).forEach(t => {
+            if (y > 270) { doc.addPage(); y = 15; }
+            doc.text(((t.date||'—') + '     ' + (t.symbol||'—').padEnd(9) + (t.side||'—').padEnd(11) + formatCurrency(parseFloat(t.pnl)||0)).substring(0,90), 10, y);
+            y += 6;
+        });
+    }
+    doc.save('trading_report_' + new Date().toISOString().split('T')[0] + '.pdf');
+    showNotification('✓ PDF downloaded', 'success');
 }
 
 function generateTaxReport() {
-    const data = `
-TRADING INCOME SUMMARY
-======================
-Generated: ${new Date().toLocaleDateString()}
-
-Total Capital Gains (Long-term): $8,500
-Total Capital Gains (Short-term): $3,200
-Dividend Income: $840
-Interest Income: $460
-
-Total Taxable Income: $13,000
-
-Note: This is a summary only. Consult a tax professional.
-    `;
-    
-    const blob = new Blob([data], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'tax_summary.txt';
-    link.click();
+    const trades = tradeData.trades;
+    const totalPnl = trades.reduce((s, t) => s + (parseFloat(t.pnl)||0), 0);
+    const dividends = trades.filter(t => t.category === 'Dividend' || t.side === 'Dividend');
+    const divIncome = dividends.reduce((s, t) => s + (parseFloat(t.pnl)||0), 0);
+    const capGains = totalPnl - divIncome;
+    const txt = `TRADING INCOME SUMMARY\n======================\nGenerated: ${new Date().toLocaleDateString()}\n\nCapital Gains: $${capGains.toFixed(2)}\nDividend Income: $${divIncome.toFixed(2)}\nTotal P&L: $${totalPnl.toFixed(2)}\nTotal Trades: ${trades.length}\n\nNote: Consult a tax professional.`;
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([txt],{type:'text/plain'})), download: 'tax_summary_' + new Date().toISOString().split('T')[0] + '.txt' });
+    a.click(); URL.revokeObjectURL(a.href);
+    showNotification('✓ Tax summary downloaded', 'success');
 }
 
 function generateAnalytics() {
-    const metrics = {
-        profitFactor: 2.14,
-        expectancy: 357,
-        maxDrawdown: -0.083,
-        sharpeRatio: 1.87,
-        kellyCriterion: 0.27
-    };
-
-    console.log('Advanced Metrics:', metrics);
-    alert(`Kelly Criterion: 27%\nExpectancy: $357/trade\nProfit Factor: 2.14`);
+    const trades = tradeData.trades;
+    if (trades.length === 0) { showNotification('No trade data', 'error'); return; }
+    const wins = trades.filter(t => parseFloat(t.pnl) > 0);
+    const losses = trades.filter(t => parseFloat(t.pnl) < 0);
+    const pnls = trades.map(t => parseFloat(t.pnl)||0);
+    const mean = pnls.reduce((s,v)=>s+v,0)/pnls.length;
+    const std = Math.sqrt(pnls.reduce((s,v)=>s+(v-mean)**2,0)/pnls.length);
+    const sharpe = std > 0 ? (mean/std*Math.sqrt(252)).toFixed(2) : '0.00';
+    const gw = wins.reduce((s,t)=>s+parseFloat(t.pnl),0);
+    const gl = Math.abs(losses.reduce((s,t)=>s+parseFloat(t.pnl),0));
+    const pf = gl > 0 ? (gw/gl).toFixed(2) : '∞';
+    const wr = wins.length/trades.length;
+    const aw = wins.length ? gw/wins.length : 0;
+    const al = losses.length ? gl/losses.length : 0;
+    const kelly = al > 0 ? ((wr - (1-wr)/(aw/al))*100).toFixed(1) : 0;
+    alert(`Advanced Analytics\n\nKelly Criterion: ${kelly}%\nExpectancy: $${mean.toFixed(0)}/trade\nProfit Factor: ${pf}\nSharpe Ratio: ${sharpe}\nTotal Trades: ${trades.length}`);
 }
 
 // ============================================================================
 // DRIVE SYNC
 // ============================================================================
-
-async function syncDrive() {
-    const btn = event.target;
-    btn.textContent = 'Syncing...';
-    btn.disabled = true;
-
+async function syncDrive(btn) {
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = 'Syncing...'; btn.disabled = true;
     try {
-        // Encrypt data
-        const encrypted = CryptoJS.AES.encrypt(
-            JSON.stringify(tradeData),
-            CONFIG.googleClientId
-        ).toString();
-
-        // Save to Drive
-        const file = new Blob([encrypted], { type: 'application/json' });
-        
-        showNotification('✓ Data synced to Google Drive', 'success');
+        const encrypt = document.getElementById('pref-encryption')?.checked;
+        let payload = JSON.stringify(tradeData);
+        if (encrypt && CONFIG.googleClientId) payload = CryptoJS.AES.encrypt(payload, CONFIG.googleClientId).toString();
+        // Actual Drive file upload requires gapi to be initialized and signed in
+        showNotification('✓ Drive sync prepared', 'success');
         document.getElementById('drive-status').textContent = 'Status: Synced ' + new Date().toLocaleTimeString();
-    } catch (err) {
-        console.error('Drive sync error:', err);
-        showNotification('✗ Drive sync failed', 'error');
-    } finally {
-        btn.textContent = 'Start Drive Sync';
-        btn.disabled = false;
-    }
+    } catch (e) { console.error(e); showNotification('✗ Drive sync failed', 'error'); }
+    finally { btn.textContent = orig; btn.disabled = false; }
 }
 
 // ============================================================================
 // CHARTS
 // ============================================================================
-
-let chartInstances = {};
+function rebuildCharts() {
+    ['equity','allocation'].forEach(k => { if (chartInstances[k]) { chartInstances[k].destroy(); delete chartInstances[k]; } });
+    initCharts();
+}
 
 function initCharts() {
-    // Equity Curve
-    const equityCtx = document.getElementById('chart-equity');
-    if (equityCtx && !chartInstances.equity) {
-        chartInstances.equity = new Chart(equityCtx, {
+    const trades = tradeData.trades;
+    let cumPnl = 0;
+    const eqLabels = [], eqData = [];
+    trades.forEach(t => { cumPnl += parseFloat(t.pnl)||0; eqLabels.push(t.date||''); eqData.push(parseFloat(cumPnl.toFixed(2))); });
+    const hasTradeData = eqLabels.length > 0;
+    if (!hasTradeData) { eqLabels.push('No trades yet'); eqData.push(0); }
+
+    const cats = {};
+    trades.forEach(t => { const c = t.category||'Other'; cats[c] = (cats[c]||0)+1; });
+    const allocLabels = Object.keys(cats).length ? Object.keys(cats) : ['No trades'];
+    const allocData = Object.keys(cats).length ? Object.values(cats) : [1];
+    const colors = ['#00d4aa','#a855f7','#3b82f6','#f59e0b','#ef4444','#10b981','#ec4899'];
+
+    const eqCtx = document.getElementById('chart-equity');
+    if (eqCtx && !chartInstances.equity) {
+        chartInstances.equity = new Chart(eqCtx, {
             type: 'line',
-            data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                datasets: [{
-                    label: 'Portfolio Value',
-                    data: [100000, 105200, 108500, 112300, 115800, 120000],
-                    borderColor: '#00d4aa',
-                    backgroundColor: 'rgba(0, 212, 170, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
+            data: { labels: eqLabels, datasets: [{ label: 'Cumulative P&L', data: eqData, borderColor: '#00d4aa', backgroundColor: 'rgba(0,212,170,0.1)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: eqData.length > 30 ? 0 : 3 }] },
+            options: { responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    y: {
-                        beginAtZero: false,
-                        grid: { color: 'rgba(255,255,255,0.05)' }
-                    },
-                    x: { grid: { display: false } }
+                    y: { beginAtZero: !hasTradeData, min: hasTradeData ? undefined : 0, max: hasTradeData ? undefined : 100,
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#999', callback: v => hasTradeData ? '$'+v.toLocaleString() : '' } },
+                    x: { grid: { display: false }, ticks: { color: '#999', maxTicksLimit: 8, maxRotation: 0 } }
                 }
             }
         });
     }
 
-    // Allocation Pie
-    const allocationCtx = document.getElementById('chart-allocation');
-    if (allocationCtx && !chartInstances.allocation) {
-        chartInstances.allocation = new Chart(allocationCtx, {
+    const alCtx = document.getElementById('chart-allocation');
+    if (alCtx && !chartInstances.allocation) {
+        chartInstances.allocation = new Chart(alCtx, {
             type: 'doughnut',
-            data: {
-                labels: ['Equities', 'Options', 'Cash'],
-                datasets: [{
-                    data: [65, 20, 15],
-                    backgroundColor: ['#00d4aa', '#a855f7', '#3b82f6'],
-                    borderColor: '#1e1e1e',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } }
-            }
+            data: { labels: allocLabels, datasets: [{ data: allocData, backgroundColor: colors.slice(0, allocLabels.length), borderColor: '#1e1e1e', borderWidth: 2 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#e0e0e0', padding: 12 } } } }
         });
     }
 }
 
 function initGoalsChart() {
-    const goalsCtx = document.getElementById('chart-goals');
-    if (goalsCtx && !chartInstances.goals) {
-        chartInstances.goals = new Chart(goalsCtx, {
+    const ctx = document.getElementById('chart-goals');
+    if (ctx && !chartInstances.goals) {
+        const g = tradeData.goals || {};
+        chartInstances.goals = new Chart(ctx, {
             type: 'bar',
-            data: {
-                labels: ['2023', '2024', '2025', '2026 Goal'],
-                datasets: [{
-                    label: 'Annual Return',
-                    data: [8.5, 12.3, 18.5, 15],
-                    backgroundColor: ['#3b82f6', '#0ea5e9', '#00d4aa', 'rgba(0, 212, 170, 0.3)'],
-                    borderColor: '#00d4aa',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                indexAxis: 'x',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: 'rgba(255,255,255,0.05)' }
-                    },
-                    x: { grid: { display: false } }
-                }
-            }
+            data: { labels: ['Return Target (%)', 'Win Rate Target (%)', 'Monthly Target (%)'],
+                datasets: [{ label: 'Goal', data: [parseFloat(g.targetReturn)||0, parseFloat(g.targetWinrate)||0, parseFloat(g.targetMonthly)||0],
+                    backgroundColor: ['rgba(0,212,170,0.6)','rgba(168,85,247,0.6)','rgba(59,130,246,0.6)'],
+                    borderColor: ['#00d4aa','#a855f7','#3b82f6'], borderWidth: 1 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#999' } }, x: { grid: { display: false }, ticks: { color: '#999' } } } }
         });
     }
 }
 
 // ============================================================================
-// UTILITIES
+// GOALS
 // ============================================================================
+function loadGoalsUI() {
+    const g = tradeData.goals || {};
+    if (g.targetReturn !== undefined) document.getElementById('goal-return').value = g.targetReturn;
+    if (g.targetWinrate !== undefined) document.getElementById('goal-winrate').value = g.targetWinrate;
+    if (g.targetMonthly !== undefined) document.getElementById('goal-monthly').value = g.targetMonthly;
 
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.textContent = message;
-    notification.style.cssText = `
-        position: fixed;
-        bottom: 2rem;
-        right: 2rem;
-        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
-        color: white;
-        padding: 1rem 1.5rem;
-        border-radius: 0.5rem;
-        font-weight: 600;
-        z-index: 9999;
-        animation: slideIn 0.3s ease-out;
-    `;
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
+    const trades = tradeData.trades;
+    if (trades.length > 0) {
+        const wins = trades.filter(t => parseFloat(t.pnl) > 0);
+        const actualWR = (wins.length / trades.length * 100).toFixed(1);
+        const targetWR = parseFloat(g.targetWinrate) || 65;
+        const pct = Math.min(100, (actualWR / targetWR * 100)).toFixed(0);
+        document.getElementById('winrate-progress-bar').style.width = pct + '%';
+        document.getElementById('winrate-progress-text').textContent = `Current: ${actualWR}% — Goal: ${pct}% achieved`;
+
+        const totalPnl = trades.reduce((s, t) => s + (parseFloat(t.pnl)||0), 0);
+        const targetRet = parseFloat(g.targetReturn) || 15;
+        const retPct = Math.min(100, Math.max(0, (totalPnl / (100000 * targetRet / 100)) * 100)).toFixed(0);
+        document.getElementById('return-progress-bar').style.width = retPct + '%';
+        document.getElementById('return-progress-text').textContent = `P&L: ${formatCurrency(totalPnl)} — Goal: ${retPct}% achieved`;
+    }
 }
 
 function saveGoals() {
@@ -1291,31 +1692,21 @@ function saveGoals() {
         targetMonthly: document.getElementById('goal-monthly').value
     };
     localStorage.setItem('quantum_goals', JSON.stringify(tradeData.goals));
+    if (chartInstances.goals) { chartInstances.goals.destroy(); delete chartInstances.goals; }
+    initGoalsChart();
     showNotification('✓ Goals saved', 'success');
 }
 
 // ============================================================================
-// CREDENTIALS MODAL FUNCTIONS
+// CREDENTIALS & SETTINGS
 // ============================================================================
-
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(() => {
-        showNotification('✓ Copied to clipboard!', 'success');
-    }).catch(err => {
-        console.error('Copy failed:', err);
-        showNotification('✗ Failed to copy', 'error');
-    });
-}
-
 function openCredentialsModal() {
-    const modal = document.getElementById('credentials-modal');
-    if (CONFIG.googleClientId) {
-        document.getElementById('modal-google-id').value = CONFIG.googleClientId;
-    }
-    if (CONFIG.schwabClientId) {
-        document.getElementById('modal-schwab-id').value = CONFIG.schwabClientId;
-    }
-    modal.style.display = 'flex';
+    document.getElementById('modal-schwab-id').value     = CONFIG.schwabClientId     || '';
+    document.getElementById('modal-schwab-secret').value = CONFIG.schwabClientSecret || '';
+    document.getElementById('modal-google-id').value     = CONFIG.googleClientId     || '';
+    const ruEl = document.getElementById('modal-redirect-uri');
+    if (ruEl) ruEl.textContent = getRedirectUri();
+    document.getElementById('credentials-modal').style.display = 'flex';
 }
 
 function closeCredentialsModal() {
@@ -1323,137 +1714,113 @@ function closeCredentialsModal() {
 }
 
 function saveCredentialsModal() {
-    const googleId = document.getElementById('modal-google-id').value.trim();
-    const schwabId = document.getElementById('modal-schwab-id').value.trim();
+    const schwabId  = document.getElementById('modal-schwab-id').value.trim();
+    const schwabSec = document.getElementById('modal-schwab-secret').value.trim();
+    const googleId  = document.getElementById('modal-google-id').value.trim();
 
-    if (!googleId || !schwabId) {
-        showNotification('✗ Please enter both Client IDs', 'error');
-        return;
-    }
-
-    CONFIG.googleClientId = googleId;
-    CONFIG.schwabClientId = schwabId;
-    localStorage.setItem('google_client_id', googleId);
-    localStorage.setItem('schwab_client_id', schwabId);
+    if (schwabId)  { CONFIG.schwabClientId     = schwabId;  localStorage.setItem('schwab_client_id', schwabId); }
+    if (schwabSec) { CONFIG.schwabClientSecret = schwabSec; localStorage.setItem('schwab_client_secret', schwabSec); }
+    if (googleId)  { CONFIG.googleClientId     = googleId;  localStorage.setItem('google_client_id', googleId); }
 
     closeCredentialsModal();
     updateCredentialStatus();
-    showNotification('✓ Credentials saved successfully', 'success');
+    updateDashboardBanner();
+    showNotification('✓ Credentials saved — click "Connect Schwab" to authorize', 'success');
 }
 
 function updateCredentialStatus() {
-    const statusEl = document.getElementById('cred-status');
-    if (CONFIG.googleClientId && CONFIG.schwabClientId) {
-        statusEl.textContent = '✓ Complete - Ready to sync';
-        statusEl.style.color = 'var(--accent)';
-    } else if (CONFIG.googleClientId || CONFIG.schwabClientId) {
-        statusEl.textContent = '⚠ Partial - Enter both IDs';
-        statusEl.style.color = '#fbbf24';
-    } else {
-        statusEl.textContent = 'Not configured';
-        statusEl.style.color = '#999';
-    }
-}
+    const el  = document.getElementById('cred-status');
+    const ru1 = document.getElementById('settings-redirect-uri');
+    const ru2 = document.getElementById('setup-redirect-uri');
 
-function updateSettings() {
-    CONFIG.googleClientId = document.getElementById('settings-google-id').value;
-    CONFIG.schwabClientId = document.getElementById('settings-schwab-id').value;
-    localStorage.setItem('google_client_id', CONFIG.googleClientId);
-    localStorage.setItem('schwab_client_id', CONFIG.schwabClientId);
-    updateCredentialStatus();
-    showNotification('✓ Settings updated', 'success');
+    if (ru1) ru1.textContent = getRedirectUri();
+    if (ru2) ru2.textContent = getRedirectUri();
+
+    if (!el) return;
+    const hasToken = !!localStorage.getItem('schwab_access_token');
+    const hasCreds = !!(CONFIG.schwabClientId && CONFIG.schwabClientSecret);
+
+    if (hasToken)        { el.textContent = '✓ Connected to Schwab';             el.style.color = 'var(--profit)'; }
+    else if (hasCreds)   { el.textContent = '⚠ Credentials set — not authorized yet'; el.style.color = '#fbbf24'; }
+    else                 { el.textContent = 'Not configured';                        el.style.color = '#999'; }
 }
 
 function saveSettings() {
-    updateSettings();
-    document.getElementById('pref-autorefresh').checked &&
-        setInterval(() => syncData(), 30000);
+    if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+    if (document.getElementById('pref-autorefresh').checked) {
+        autoRefreshTimer = setInterval(() => syncData(document.getElementById('sync-btn')), 30000);
+    }
+    showNotification('✓ Settings saved', 'success');
 }
 
 function clearAllData() {
-    if (confirm('⚠️ This will permanently delete all local data. Are you sure?')) {
-        localStorage.clear();
-        if (db) {
-            db.clear();
-        }
-        location.reload();
+    if (!confirm('⚠️ Permanently delete all local data?')) return;
+    localStorage.clear();
+    if (db) {
+        try { db.transaction('trades','readwrite').objectStore('trades').clear(); } catch(e){}
+        try { db.transaction('backups','readwrite').objectStore('backups').clear(); } catch(e){}
     }
-}
-
-function importBackup() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e) => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                tradeData = JSON.parse(event.target.result);
-                localStorage.setItem('quantum_trades', JSON.stringify(tradeData));
-                showNotification('✓ Backup imported', 'success');
-            } catch (err) {
-                showNotification('✗ Invalid file', 'error');
-            }
-        };
-        reader.readAsText(file);
-    };
-    input.click();
+    location.reload();
 }
 
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
-
 document.addEventListener('DOMContentLoaded', async () => {
-    // Check for OAuth callback
-    if (window.location.search.includes('code=')) {
-        handleSchwabCallback();
-    }
+    await initDB();
 
-    // Check setup status
-    if (!CONFIG.googleClientId || !CONFIG.schwabClientId) {
+    try {
+        const saved = localStorage.getItem('quantum_trades');
+        if (saved) tradeData = JSON.parse(saved);
+    } catch { tradeData = { trades: [], goals: {}, lastSync: null }; }
+
+    try {
+        const savedGoals = localStorage.getItem('quantum_goals');
+        if (savedGoals) tradeData.goals = JSON.parse(savedGoals);
+    } catch {}
+
+    // Show setup modal only on very first visit (no Schwab key yet)
+    const alreadyConfigured = !!(CONFIG.schwabClientId);
+    if (!alreadyConfigured && !localStorage.getItem('schwab_access_token')) {
         document.getElementById('setup-modal').classList.add('active');
     } else {
         document.getElementById('setup-modal').classList.remove('active');
-        document.querySelector('.sidebar').style.display = 'flex';
+        setupCompleted = true;
+        if (window.innerWidth >= 768) showSidebar(true);
     }
 
-    // Initialize DB
-    await initDB();
-
-    // Load saved data
-    const saved = localStorage.getItem('quantum_trades');
-    if (saved) {
-        tradeData = JSON.parse(saved);
-    }
-
-    // Setup responsive
     if (window.innerWidth < 768) {
-        document.querySelector('.sidebar').style.display = 'none';
+        showSidebar(false);
         document.getElementById('menu-btn').style.display = 'block';
     }
 
-    // Load goal data
-    const savedGoals = localStorage.getItem('quantum_goals');
-    if (savedGoals) {
-        tradeData.goals = JSON.parse(savedGoals);
-    }
-
-    // Hide setup if configured
-    if (CONFIG.googleClientId && CONFIG.schwabClientId) {
-        document.getElementById('setup-modal').classList.remove('active');
-    }
-
-    // Update credential status display
     updateCredentialStatus();
+    updateDashboardBanner();
+    updateDashboardStats();
+    renderRecentTrades();
+    setTimeout(() => initCharts(), 200);
+
+    document.getElementById('search-trades').addEventListener('input', filterTrades);
+
+    // Handle Schwab OAuth callback (runs AFTER page renders so user sees the UI)
+    if (window.location.search.includes('code=')) {
+        setTimeout(async () => {
+            const ok = await handleSchwabCallback();
+            if (!ok) updateDashboardBanner();
+        }, 300);
+    } else if (localStorage.getItem('schwab_access_token')) {
+        // Already connected — auto-refresh data in background
+        setTimeout(() => fetchSchwabData(false), 500);
+    }
 });
 
-// Responsive sidebar toggle
 window.addEventListener('resize', () => {
     if (window.innerWidth >= 768) {
-        document.querySelector('.sidebar').style.display = 'flex';
+        if (setupCompleted) showSidebar(true);
         document.getElementById('menu-btn').style.display = 'none';
+    } else {
+        showSidebar(false);
+        document.getElementById('menu-btn').style.display = 'block';
     }
 });
 </script>
