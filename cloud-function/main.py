@@ -74,10 +74,11 @@ def require_auth(f):
 
 def add_cors_headers(response: Response, origin: str = "") -> Response:
     """Add CORS headers to response."""
-    if origin in ALLOWED_ORIGINS or origin.startswith("https://ossaenz.github.io"):
-        response.headers["Access-Control-Allow-Origin"] = origin
+    # Allow GitHub Pages, local testing, and null origin (local file open)
+    if origin in ALLOWED_ORIGINS or origin.startswith("https://ossaenz.github.io") or origin == "null" or not origin:
+        allowed = origin if origin and origin != "null" else "https://ossaenz.github.io"
+        response.headers["Access-Control-Allow-Origin"] = allowed
     else:
-        # Allow during development — restrict in production if needed
         response.headers["Access-Control-Allow-Origin"] = "https://ossaenz.github.io"
     response.headers["Access-Control-Allow-Credentials"] = "true"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
