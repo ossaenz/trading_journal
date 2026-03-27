@@ -914,14 +914,16 @@ function updateAccountsUI(accounts) {
 // ============================================================================
 
 async function authenticateSchwab() {
-    try {\n        // Step 1: Get authorization URL from backend
+    try {
+        // Step 1: Get authorization URL from backend
         const startResponse = await fetch(`${BACKEND_URL}/oauth/schwab/start`, {
             method: 'GET',
             credentials: 'include'
         });
 
         if (!startResponse.ok) {
-            throw new Error('Failed to start OAuth flow');\n        }
+            throw new Error('Failed to start OAuth flow');
+        }
 
         const {authorization_url, state} = await startResponse.json();
 
@@ -974,7 +976,8 @@ function handleSchwabCallback() {
             fetchSchwabData();
         }
     })
-    .catch(err => {\n        console.error('OAuth callback error:', err);
+    .catch(err => {
+        console.error('OAuth callback error:', err);
         showNotification('Authentication failed', 'error');
     });
 }
