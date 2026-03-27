@@ -108,7 +108,17 @@
         @keyframes spin { to { transform: rotate(360deg); } }
 
         .nav-btn {
-            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border: none;
+            background: none;
+            color: #e0e0e0;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
         }
 
         .nav-btn:hover {
@@ -643,6 +653,9 @@
                             <input type="text" id="settings-schwab-id" placeholder="Your Schwab Client ID">
                         </div>
                         <button onclick="updateSettings()" class="btn-primary">Update Credentials</button>
+                        <button onclick="authenticateSchwab()" class="btn-secondary" style="background: rgba(0, 212, 170, 0.1); border-color: rgba(0, 212, 170, 0.3);">
+                            <i class="fas fa-lock"></i> Connect to Schwab Account
+                        </button>
                     </div>
                 </div>
 
@@ -688,7 +701,11 @@
 // CONFIG & STATE MANAGEMENT
 // ============================================================================
 
+// Secure backend endpoint
+const BACKEND_URL = 'https://us-central1-my-stock-journal.cloudfunctions.net/quantumwheel-backend';
+
 const CONFIG = {
+    backendUrl: BACKEND_URL,
     googleClientId: localStorage.getItem('google_client_id') || '',
     schwabClientId: localStorage.getItem('schwab_client_id') || '',
     scopes: ['https://www.googleapis.com/auth/drive.file'],
@@ -736,18 +753,30 @@ function saveSetup() {
         return;
     }
 
-    localStorage.setItem('google_client_id', googleId);
-    localStorage.setItem('schwab_client_id', schwabId);
+    // Test backend connectivity
+    fetch(`${BACKEND_URL}/health`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'healthy') {
+                localStorage.setItem('google_client_id', googleId);
+                localStorage.setItem('schwab_client_id', schwabId);
 
-    CONFIG.googleClientId = googleId;
-    CONFIG.schwabClientId = schwabId;
+                CONFIG.googleClientId = googleId;
+                CONFIG.schwabClientId = schwabId;
 
-    document.getElementById('setup-modal').classList.remove('active');
-    document.querySelector('.sidebar').style.display = 'flex';
-    document.getElementById('menu-btn').style.display = 'block';
+                document.getElementById('setup-modal').classList.remove('active');
+                document.querySelector('.sidebar').style.display = 'flex';
+                document.getElementById('menu-btn').style.display = 'block';
 
-    // Load from Drive if available
-    loadFromDrive();
+                // Load from Drive if available
+                loadFromDrive();
+                showNotification('✓ Connected to secure backend', 'success');
+            }
+        })
+        .catch(err => {
+            console.error('Backend connection failed:', err);
+            alert('Backend not accessible. Check your internet connection.');
+        });
 }
 
 function showPage(pageName) {
@@ -804,25 +833,117 @@ function syncData() {
 }
 
 async function fetchSchwabData() {
-    // Check if we have Schwab token
-    const schwabToken = localStorage.getItem('schwab_token');
+    // Check if we have a session token
+    const sessionToken = localStorage.getItem('schwab_session_token');
     
-    if (!schwabToken) {
-        console.log('No Schwab token. User must authenticate.');
+    if (!sessionToken) {
+        console.log('No Schwab session. User must authenticate.');
         return;
     }
 
     try {
-        // Fetch account balances, positions, orders
-        const accounts = await fetch('https://api.schwabapi.com/trader/v1/accounts', {
-            headers: { 'Authorization': `Bearer ${schwabToken}` }
-        }).then(r => r.json());
+        // Call backend proxy instead of direct API
+        const response = await fetch(`${BACKEND_URL}/api/schwab?endpoint=/trader/v1/accounts`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionToken}`
+            }
+        });
 
-        console.log('Schwab data:', accounts);
-        // Process and store
+        if (response.status === 401) {
+            console.log('Session expired. Re-authenticate needed.');
+            localStorage.removeItem('schwab_session_token');
+            return;
+        }
+
+        const accounts = await response.json();
+        console.log('Schwab accounts (via backend):', accounts);
+        // Process and store accounts data
+        if (accounts && accounts.accounts) {
+            // Update UI with account data
+            updateAccountsUI(accounts.accounts);
+        }
     } catch (err) {
-        console.error('Schwab API error:', err);
+        console.error('Schwab data fetch error:', err);
     }
+}
+
+// Helper function to update UI with account data
+function updateAccountsUI(accounts) {
+    // Placeholder for UI update logic
+    console.log('Updating UI with accounts:', accounts);
+}
+
+// ============================================================================
+// SCHWAB OAUTH AUTHENTICATION (Via Secure Backend)
+// ============================================================================
+
+async function authenticateSchwab() {
+    try {\n        // Step 1: Get authorization URL from backend
+        const startResponse = await fetch(`${BACKEND_URL}/oauth/schwab/start`, {
+            method: 'GET',
+            credentials: 'include'
+        });
+
+        if (!startResponse.ok) {
+            throw new Error('Failed to start OAuth flow');\n        }
+
+        const {authorization_url, state} = await startResponse.json();
+
+        // Store state for verification on callback
+        sessionStorage.setItem('oauth_state', state);
+
+        // Step 2: Redirect to Schwab login
+        window.location.href = authorization_url;
+    } catch (err) {
+        console.error('Schwab OAuth error:', err);
+        showNotification('Failed to initiate Schwab login', 'error');
+    }
+}
+
+// Handle OAuth callback from backend
+function handleSchwabCallback() {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+
+    if (!code || !state) {
+        console.log('No OAuth code in URL');
+        return;
+    }
+
+    // Verify state matches
+    const savedState = sessionStorage.getItem('oauth_state');
+    if (state !== savedState) {
+        console.error('State mismatch - CSRF attack?');
+        return;
+    }
+
+    // Exchange code for token via backend
+    fetch(`${BACKEND_URL}/oauth/schwab/callback`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({code: code, state: state})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            // Store session token (backend uses secure cookies)
+            localStorage.setItem('schwab_session_token', data.access_token);
+            sessionStorage.removeItem('oauth_state');
+            showNotification('\u2713 Schwab authenticated successfully', 'success');
+            // Clean up URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            // Fetch data
+            fetchSchwabData();
+        }
+    })
+    .catch(err => {\n        console.error('OAuth callback error:', err);
+        showNotification('Authentication failed', 'error');
+    });
 }
 
 async function loadFromDrive() {
@@ -1187,6 +1308,11 @@ function importBackup() {
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Check for OAuth callback
+    if (window.location.search.includes('code=')) {
+        handleSchwabCallback();
+    }
+
     // Check setup status
     if (!CONFIG.googleClientId || !CONFIG.schwabClientId) {
         document.getElementById('setup-modal').classList.add('active');
