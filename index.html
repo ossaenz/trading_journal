@@ -788,7 +788,11 @@
 // ============================================================================
 // CONFIG & STATE
 // ============================================================================
-// Schwab API endpoints — no backend needed, calls go directly to Schwab
+// CONFIGURATION
+// ============================================================================
+// Secure backend — handles OAuth token exchange with Client Secret stored in Secret Manager
+const BACKEND_URL      = 'https://us-central1-my-stock-journal.cloudfunctions.net/quantumwheel-backend';
+// Schwab API endpoints — accessed via BACKEND proxy to avoid exposing tokens
 const SCHWAB_AUTH_URL  = 'https://api.schwabapi.com/v1/oauth/authorize';
 const SCHWAB_TOKEN_URL = 'https://api.schwabapi.com/v1/oauth/token';
 const SCHWAB_API_BASE  = 'https://api.schwabapi.com/trader/v1';
@@ -796,7 +800,7 @@ const SCHWAB_API_BASE  = 'https://api.schwabapi.com/trader/v1';
 const CONFIG = {
     googleClientId:    localStorage.getItem('google_client_id')     || '',
     schwabClientId:    localStorage.getItem('schwab_client_id')     || '',
-    schwabClientSecret:localStorage.getItem('schwab_client_secret') || '',
+    // NOTE: schwabClientSecret is NEVER stored on frontend — it's secure in Google Cloud Secret Manager
     scopes: ['https://www.googleapis.com/auth/drive.file']
 };
 
@@ -1150,119 +1154,123 @@ function getRedirectUri() {
 }
 
 async function authenticateSchwab() {
-    if (!CONFIG.schwabClientId || !CONFIG.schwabClientSecret) {
-        showNotification('✗ Enter your Schwab App Key and Secret in Settings first', 'error');
+    if (!CONFIG.schwabClientId) {
+        showNotification('✗ Enter your Schwab App Key in Settings first', 'error');
         showPage('settings');
         return;
     }
 
-    const verifier   = generateRandomString(128);
-    const challenge  = await sha256base64url(verifier);
-    const state      = generateRandomString(32);
+    try {
+        // Step 1: Get auth URL from BACKEND (which manages state/PKCE)
+        const startResp = await fetch(BACKEND_URL + '/oauth/schwab/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                client_id: CONFIG.schwabClientId,
+                redirect_uri: getRedirectUri(),
+                state: generateRandomString(32),
+                code_challenge: await sha256base64url(generateRandomString(128))
+            })
+        });
 
-    sessionStorage.setItem('pkce_verifier', verifier);
-    sessionStorage.setItem('oauth_state', state);
-    sessionStorage.setItem('oauth_redirect', getRedirectUri());
+        if (!startResp.ok) throw new Error('Backend OAuth init failed');
+        const {authorization_url, state, code_verifier} = await startResp.json();
 
-    const params = new URLSearchParams({
-        response_type:         'code',
-        client_id:             CONFIG.schwabClientId,
-        redirect_uri:          getRedirectUri(),
-        scope:                 'readonly',
-        state:                 state,
-        code_challenge:        challenge,
-        code_challenge_method: 'S256'
-    });
+        // Save state/verifier for callback
+        sessionStorage.setItem('oauth_state', state);
+        sessionStorage.setItem('pkce_verifier', code_verifier);
+        sessionStorage.setItem('oauth_redirect', getRedirectUri());
 
-    window.location.href = SCHWAB_AUTH_URL + '?' + params.toString();
+        // Redirect to Schwab
+        window.location.href = authorization_url;
+    } catch (err) {
+        console.error('Schwab OAuth error:', err);
+        showNotification('✗ Schwab login failed: ' + err.message, 'error');
+    }
 }
 
 async function handleSchwabCallback() {
     const params = new URLSearchParams(window.location.search);
     const code  = params.get('code');
     const state = params.get('state');
-    if (!code) return false;
+    if (!code) return;
 
-    // Clean the URL immediately
+    // Clean URL immediately
     window.history.replaceState({}, document.title, window.location.pathname);
 
     if (state !== sessionStorage.getItem('oauth_state')) {
-        showNotification('✗ OAuth state mismatch — possible CSRF. Please try again.', 'error');
-        return false;
+        showNotification('✗ OAuth state mismatch — possible CSRF.', 'error');
+        return;
     }
 
     showNotification('🔄 Exchanging auth code for tokens...', 'info');
 
-    const verifier     = sessionStorage.getItem('pkce_verifier');
-    const redirectUri  = sessionStorage.getItem('oauth_redirect') || getRedirectUri();
-    sessionStorage.removeItem('pkce_verifier');
-    sessionStorage.removeItem('oauth_state');
-    sessionStorage.removeItem('oauth_redirect');
-
-    // Schwab requires Basic Auth (client_id:client_secret) for token exchange
-    const credentials = btoa(CONFIG.schwabClientId + ':' + CONFIG.schwabClientSecret);
-
     try {
-        const body = new URLSearchParams({
-            grant_type:    'authorization_code',
-            code:          code,
-            redirect_uri:  redirectUri,
-            code_verifier: verifier
+        // Step 2: Exchange code for tokens via BACKEND (Client Secret never touches browser)
+        const codeResp = await fetch(BACKEND_URL + '/oauth/schwab/callback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                code: code,
+                state: state,
+                client_id: CONFIG.schwabClientId,
+                redirect_uri: sessionStorage.getItem('oauth_redirect') || getRedirectUri(),
+                code_verifier: sessionStorage.getItem('pkce_verifier')
+            })
         });
 
-        const resp = await fetch(SCHWAB_TOKEN_URL, {
-            method:  'POST',
-            headers: {
-                'Content-Type':  'application/x-www-form-urlencoded',
-                'Authorization': 'Basic ' + credentials
-            },
-            body: body.toString()
-        });
-
-        if (!resp.ok) {
-            const err = await resp.text();
-            throw new Error('Token exchange failed: ' + err);
+        if (!codeResp.ok) {
+            const err = await codeResp.text();
+            throw new Error('Backend token exchange failed: ' + err);
         }
 
-        const tokens = await resp.json();
+        const tokens = await codeResp.json();
         localStorage.setItem('schwab_access_token',  tokens.access_token);
         localStorage.setItem('schwab_refresh_token', tokens.refresh_token || '');
-        // Tokens expire in tokens.expires_in seconds
         localStorage.setItem('schwab_token_expiry', Date.now() + (tokens.expires_in || 1800) * 1000);
+
+        sessionStorage.removeItem('pkce_verifier');
+        sessionStorage.removeItem('oauth_state');
+        sessionStorage.removeItem('oauth_redirect');
 
         showNotification('✓ Schwab connected! Fetching your trades...', 'success');
         updateCredentialStatus();
         await fetchSchwabData(true);
-        return true;
     } catch (err) {
         console.error('Token exchange error:', err);
         showNotification('✗ Schwab auth failed: ' + err.message, 'error');
-        return false;
     }
 }
 
 async function refreshSchwabToken() {
     const refreshToken = localStorage.getItem('schwab_refresh_token');
-    if (!refreshToken || !CONFIG.schwabClientId || !CONFIG.schwabClientSecret) return false;
+    if (!refreshToken) return false;
 
-    const credentials = btoa(CONFIG.schwabClientId + ':' + CONFIG.schwabClientSecret);
     try {
-        const resp = await fetch(SCHWAB_TOKEN_URL, {
-            method:  'POST',
-            headers: {
-                'Content-Type':  'application/x-www-form-urlencoded',
-                'Authorization': 'Basic ' + credentials
-            },
-            body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken }).toString()
+        // Call backend to refresh token (Client Secret used server-side only)
+        const resp = await fetch(BACKEND_URL + '/oauth/schwab/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                refresh_token: refreshToken,
+                client_id: CONFIG.schwabClientId
+            })
         });
-        if (!resp.ok) throw new Error('Refresh failed');
+
+        if (!resp.ok) {
+            console.error('Token refresh failed:', resp.status);
+            return false;
+        }
+
         const tokens = await resp.json();
         localStorage.setItem('schwab_access_token', tokens.access_token);
         localStorage.setItem('schwab_token_expiry', Date.now() + (tokens.expires_in || 1800) * 1000);
-        if (tokens.refresh_token) localStorage.setItem('schwab_refresh_token', tokens.refresh_token);
+        if (tokens.refresh_token) {
+            localStorage.setItem('schwab_refresh_token', tokens.refresh_token);
+        }
         return true;
     } catch (e) {
-        console.error('Token refresh failed:', e);
+        console.error('Token refresh error:', e);
         return false;
     }
 }
@@ -1297,15 +1305,15 @@ async function fetchSchwabData(showUI = false) {
     if (showUI) showNotification('🔄 Fetching Schwab data...', 'info');
 
     try {
-        // 1. Get accounts list
-        const accountsResp = await fetch(SCHWAB_API_BASE + '/accounts?fields=positions', {
+        // 1. Get accounts list via backend proxy
+        const accountsResp = await fetch(BACKEND_URL + '/api/schwab?endpoint=/trader/v1/accounts?fields=positions', {
             headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
         });
 
         if (accountsResp.status === 401) {
             const refreshed = await refreshSchwabToken();
             if (!refreshed) { disconnectSchwab(); return; }
-            return fetchSchwabData(showUI); // retry
+            return fetchSchwabData(showUI); // retry with refreshed token
         }
 
         if (!accountsResp.ok) throw new Error('Accounts fetch failed: ' + accountsResp.status);
@@ -1329,7 +1337,7 @@ async function fetchSchwabData(showUI = false) {
             if (!acctNum) continue;
 
             const txResp = await fetch(
-                `${SCHWAB_API_BASE}/accounts/${encodeURIComponent(acctNum)}/transactions?types=TRADE,DIVIDEND_OR_INTEREST,RECEIVE_AND_DELIVER&startDate=${startDate}&endDate=${endDate}`,
+                `${BACKEND_URL}/api/schwab?endpoint=/trader/v1/accounts/${encodeURIComponent(acctNum)}/transactions?types=TRADE,DIVIDEND_OR_INTEREST,RECEIVE_AND_DELIVER&startDate=${startDate}&endDate=${endDate}`,
                 { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' } }
             );
 
