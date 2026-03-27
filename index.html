@@ -636,6 +636,45 @@
             </div>
         </div>
 
+        <!-- CREDENTIALS SETUP MODAL -->
+        <div id="credentials-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
+            <div class="glass-dark" style="width: 90%; max-width: 500px; padding: 2rem; max-height: 90vh; overflow-y: auto;">
+                <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">🔐 Enter Your API Credentials</h2>
+                <p style="color: #999; margin-bottom: 2rem; font-size: 0.875rem;">Your credentials are stored locally in your browser. They're never sent to any server except the encrypted Google Cloud backend.</p>
+                
+                <div style="display: grid; gap: 1.5rem;">
+                    <!-- GOOGLE CLIENT ID -->
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Google Client ID</label>
+                        <p style="color: #999; font-size: 0.75rem; margin-bottom: 0.75rem;">Use this to sync data with Google Drive</p>
+                        <div style="display: grid; gap: 0.5rem;">
+                            <input type="text" id="modal-google-id" placeholder="Paste your Google Client ID" style="padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 0.5rem; color: #e0e0e0;">
+                            <button onclick="copyToClipboard('206086068161-os538lqofudoegdmt56up5dnpjsgi3sq.apps.googleusercontent.com')" style="padding: 0.5rem; background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.3); border-radius: 0.5rem; color: var(--accent); cursor: pointer; font-size: 0.75rem; font-weight: 600;">
+                                📋 Copy Google ID (click to copy to clipboard)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SCHWAB CLIENT ID -->
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Schwab Client ID</label>
+                        <p style="color: #999; font-size: 0.75rem; margin-bottom: 0.75rem;">Use this to connect your Schwab trading account</p>
+                        <div style="display: grid; gap: 0.5rem;">
+                            <input type="text" id="modal-schwab-id" placeholder="Paste your Schwab Client ID" style="padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 0.5rem; color: #e0e0e0;">
+                            <button onclick="copyToClipboard('JE9j2QOYALHoWM64Dz0W0JgJFLAz7OAoG0XAdaGcebimT8HP')" style="padding: 0.5rem; background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.3); border-radius: 0.5rem; color: var(--accent); cursor: pointer; font-size: 0.75rem; font-weight: 600;">
+                                📋 Copy Schwab ID (click to copy to clipboard)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 2rem;">
+                    <button onclick="closeCredentialsModal()" style="padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 0.5rem; color: #e0e0e0; cursor: pointer; font-weight: 600;">Cancel</button>
+                    <button onclick="saveCredentialsModal()" class="btn-primary">Save Credentials</button>
+                </div>
+            </div>
+        </div>
+
         <!-- SETTINGS TAB -->
         <div id="page-settings" class="page">
             <h1 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 2rem;">Settings</h1>
@@ -643,19 +682,13 @@
             <div style="display: grid; gap: 1.5rem;">
                 <div class="glass" style="padding: 1.5rem;">
                     <h3 style="font-weight: 600; margin-bottom: 1rem;">🔐 API Credentials</h3>
-                    <div style="display: grid; gap: 1rem;">
-                        <div>
-                            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Google Client ID</label>
-                            <input type="text" id="settings-google-id" placeholder="Your Google Client ID">
-                        </div>
-                        <div>
-                            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Schwab Client ID</label>
-                            <input type="text" id="settings-schwab-id" placeholder="Your Schwab Client ID">
-                        </div>
-                        <button onclick="updateSettings()" class="btn-primary">Update Credentials</button>
-                        <button onclick="authenticateSchwab()" class="btn-secondary" style="background: rgba(0, 212, 170, 0.1); border-color: rgba(0, 212, 170, 0.3);">
-                            <i class="fas fa-lock"></i> Connect to Schwab Account
-                        </button>
+                    <p style="color: #999; font-size: 0.875rem; margin-bottom: 1rem;">Manage your API credentials. They're stored locally in your browser for security.</p>
+                    <button onclick="openCredentialsModal()" class="btn-primary" style="width: 100%; margin-bottom: 1rem;">Edit Credentials</button>
+                    <button onclick="authenticateSchwab()" class="btn-secondary" style="background: rgba(0, 212, 170, 0.1); border-color: rgba(0, 212, 170, 0.3); width: 100%;">
+                        <i class="fas fa-lock"></i> Connect to Schwab Account
+                    </button>
+                    <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,212,170,0.05); border-left: 3px solid var(--accent); border-radius: 0.5rem;">
+                        <p style="margin: 0; font-size: 0.875rem; color: #c0c0c0;"><strong>Status:</strong> <span id="cred-status" style="color: #999;">Not configured</span></p>
                     </div>
                 </div>
 
@@ -1258,11 +1291,73 @@ function saveGoals() {
     showNotification('✓ Goals saved', 'success');
 }
 
+// ============================================================================
+// CREDENTIALS MODAL FUNCTIONS
+// ============================================================================
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showNotification('✓ Copied to clipboard!', 'success');
+    }).catch(err => {
+        console.error('Copy failed:', err);
+        showNotification('✗ Failed to copy', 'error');
+    });
+}
+
+function openCredentialsModal() {
+    const modal = document.getElementById('credentials-modal');
+    if (CONFIG.googleClientId) {
+        document.getElementById('modal-google-id').value = CONFIG.googleClientId;
+    }
+    if (CONFIG.schwabClientId) {
+        document.getElementById('modal-schwab-id').value = CONFIG.schwabClientId;
+    }
+    modal.style.display = 'flex';
+}
+
+function closeCredentialsModal() {
+    document.getElementById('credentials-modal').style.display = 'none';
+}
+
+function saveCredentialsModal() {
+    const googleId = document.getElementById('modal-google-id').value.trim();
+    const schwabId = document.getElementById('modal-schwab-id').value.trim();
+
+    if (!googleId || !schwabId) {
+        showNotification('✗ Please enter both Client IDs', 'error');
+        return;
+    }
+
+    CONFIG.googleClientId = googleId;
+    CONFIG.schwabClientId = schwabId;
+    localStorage.setItem('google_client_id', googleId);
+    localStorage.setItem('schwab_client_id', schwabId);
+
+    closeCredentialsModal();
+    updateCredentialStatus();
+    showNotification('✓ Credentials saved successfully', 'success');
+}
+
+function updateCredentialStatus() {
+    const statusEl = document.getElementById('cred-status');
+    if (CONFIG.googleClientId && CONFIG.schwabClientId) {
+        statusEl.textContent = '✓ Complete - Ready to sync';
+        statusEl.style.color = 'var(--accent)';
+    } else if (CONFIG.googleClientId || CONFIG.schwabClientId) {
+        statusEl.textContent = '⚠ Partial - Enter both IDs';
+        statusEl.style.color = '#fbbf24';
+    } else {
+        statusEl.textContent = 'Not configured';
+        statusEl.style.color = '#999';
+    }
+}
+
 function updateSettings() {
     CONFIG.googleClientId = document.getElementById('settings-google-id').value;
     CONFIG.schwabClientId = document.getElementById('settings-schwab-id').value;
     localStorage.setItem('google_client_id', CONFIG.googleClientId);
     localStorage.setItem('schwab_client_id', CONFIG.schwabClientId);
+    updateCredentialStatus();
     showNotification('✓ Settings updated', 'success');
 }
 
@@ -1346,6 +1441,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (CONFIG.googleClientId && CONFIG.schwabClientId) {
         document.getElementById('setup-modal').classList.remove('active');
     }
+
+    // Update credential status display
+    updateCredentialStatus();
 });
 
 // Responsive sidebar toggle
