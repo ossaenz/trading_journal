@@ -45,7 +45,10 @@ GOOGLE_CLIENT_SECRET = get_secret("google_client_secret") or os.environ.get("GOO
 
 ALLOWED_ORIGINS = [
     "https://ossaenz.github.io",
-    "http://localhost:8000",  # Local testing
+    "http://localhost:8000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "http://127.0.0.1:8000",
 ]
 
 # ============================================================================
@@ -69,6 +72,18 @@ def require_auth(f):
         return f(*args, **kwargs)
     return decorated
 
+def add_cors_headers(response: Response, origin: str = "") -> Response:
+    """Add CORS headers to response."""
+    if origin in ALLOWED_ORIGINS or origin.startswith("https://ossaenz.github.io"):
+        response.headers["Access-Control-Allow-Origin"] = origin
+    else:
+        # Allow during development — restrict in production if needed
+        response.headers["Access-Control-Allow-Origin"] = "https://ossaenz.github.io"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
+
 def json_response(data: dict, status: int = 200) -> Response:
     """Return JSON response with CORS headers."""
     response = Response(
@@ -76,15 +91,8 @@ def json_response(data: dict, status: int = 200) -> Response:
         status=status,
         content_type="application/json"
     )
-    
     origin = flask_request.headers.get("Origin", "")
-    if origin in ALLOWED_ORIGINS:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    
-    return response
+    return add_cors_headers(response, origin)
 
 # ============================================================================
 # OAUTH ENDPOINTS
@@ -292,15 +300,11 @@ def handle_request(request: Request) -> Response:
     Main Cloud Functions entry point.
     Routes requests to appropriate handlers.
     """
-    # Handle CORS preflight
+    # Handle CORS preflight — MUST return correct headers for all OPTIONS requests
     if request.method == "OPTIONS":
         response = Response("", status=204)
         origin = request.headers.get("Origin", "")
-        if origin in ALLOWED_ORIGINS:
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        return response
+        return add_cors_headers(response, origin)
     
     path = request.path
     
