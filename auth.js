@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { action } = req.query;
+  const { action, code } = req.query;
 
   // ── 1. Redirect user to Schwab login ──────────────────────────────────────
   if (action === 'login') {
@@ -24,8 +24,8 @@ export default async function handler(req, res) {
   }
 
   // ── 2. Exchange authorization code for tokens ─────────────────────────────
-  if (action === 'callback') {
-    const { code } = req.query;
+  // Schwab redirects back to /api/auth?code=... (no action param allowed in registered URL)
+  if (action === 'callback' || (code && !action)) {
     if (!code) return res.status(400).json({ error: 'Missing code' });
 
     const credentials = Buffer.from(
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
       if (!tokenRes.ok) return res.status(400).json(tokens);
 
       // Redirect to app with tokens in fragment (never in query string)
-      const appUrl = process.env.SCHWAB_REDIRECT_URI.replace('/api/auth?action=callback', '');
+      const appUrl = process.env.SCHWAB_REDIRECT_URI.replace(/\/api\/auth.*$/, '');
       return res.redirect(
         `${appUrl}/#access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}&expires_in=${tokens.expires_in}`
       );
