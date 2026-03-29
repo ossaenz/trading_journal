@@ -82,6 +82,23 @@ function checkAuthCallback() {
   syncData();
 }
 
+function clearAuthState() {
+  ['apex_access_token', 'apex_refresh_token', 'apex_token_expiry'].forEach((key) => {
+    localStorage.removeItem(key);
+  });
+
+  State.accessToken = null;
+  State.refreshToken = null;
+  State.tokenExpiry = null;
+}
+
+function handleAuthExpired(message = 'Session expired. Please reconnect Schwab.') {
+  clearAuthState();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').classList.add('show');
+  showToast(message, 'error');
+}
+
 async function ensureToken() {
   if (!State.tokenExpiry || Date.now() > State.tokenExpiry - 60000) {
     try {
@@ -90,20 +107,32 @@ async function ensureToken() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: State.refreshToken }),
       });
+
       const data = await r.json();
-      if (data.access_token) {
-        State.accessToken = data.access_token;
-        State.tokenExpiry = Date.now() + (data.expires_in || 1800) * 1000;
-        localStorage.setItem('apex_access_token', data.access_token);
-        localStorage.setItem('apex_token_expiry', State.tokenExpiry.toString());
+      if (!r.ok || !data.access_token) {
+        throw new Error(data.error || 'Unable to refresh access token');
       }
-    } catch (e) { console.warn('Token refresh failed', e); }
+
+      State.accessToken = data.access_token;
+      State.tokenExpiry = Date.now() + (data.expires_in || 1800) * 1000;
+      localStorage.setItem('apex_access_token', data.access_token);
+      localStorage.setItem('apex_token_expiry', State.tokenExpiry.toString());
+
+      if (data.refresh_token) {
+        State.refreshToken = data.refresh_token;
+        localStorage.setItem('apex_refresh_token', data.refresh_token);
+      }
+    } catch (e) {
+      console.warn('Token refresh failed', e);
+      handleAuthExpired();
+      throw e;
+    }
   }
 }
 
 function logout() {
-  ['apex_access_token','apex_refresh_token','apex_token_expiry'].forEach(k => localStorage.removeItem(k));
-  Object.assign(State, { accessToken: null, refreshToken: null, accounts: [], positions: [], orders: [] });
+  clearAuthState();
+  Object.assign(State, { accounts: [], positions: [], orders: [] });
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').classList.add('show');
 }
