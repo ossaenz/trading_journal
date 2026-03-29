@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "api/*.js", "use": "@vercel/node" },
+    { "src": "public/**", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/public/$1" }
+  ],
+  "env": {
+    "SCHWAB_CLIENT_ID": "@schwab_client_id",
+    "SCHWAB_CLIENT_SECRET": "@schwab_client_secret",
+    "SCHWAB_REDIRECT_URI": "@schwab_redirect_uri"
+  }
+}

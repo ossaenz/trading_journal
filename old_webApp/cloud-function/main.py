@@ -12,6 +12,7 @@ Deploy to Google Cloud Functions:
 
 import os
 import json
+import base64
 import requests
 import secrets
 from functools import wraps
@@ -33,10 +34,15 @@ def get_secret(secret_name: str) -> str:
         project_id = os.environ.get("GCP_PROJECT_ID")
         secret_path = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
         response = client.access_secret_version(request={"name": secret_path})
-        return response.payload.data.decode("UTF-8")
-    except Exception:
+        secret_value = response.payload.data.decode("UTF-8")
+        print(f"[DEBUG] Successfully retrieved secret: {secret_name}, length: {len(secret_value)}")
+        return secret_value
+    except Exception as e:
         # Fallback to environment variables (for local testing)
-        return os.environ.get(secret_name, "")
+        print(f"[DEBUG] Failed to get secret {secret_name} from Secret Manager: {str(e)}")
+        env_value = os.environ.get(secret_name, "")
+        print(f"[DEBUG] Fallback from environment: {secret_name}, value exists: {bool(env_value)}")
+        return env_value
 
 SCHWAB_CLIENT_ID = os.environ.get("SCHWAB_CLIENT_ID", "")
 SCHWAB_CLIENT_SECRET = get_secret("schwab_client_secret") or os.environ.get("SCHWAB_CLIENT_SECRET", "")
@@ -109,26 +115,19 @@ def oauth_schwab_start(request: Request) -> Response:
         client_id = body.get("client_id", SCHWAB_CLIENT_ID)
         redirect_uri = body.get("redirect_uri", "https://ossaenz.github.io/trading_journal/")
         state = body.get("state") or secrets.token_urlsafe(32)
-        code_challenge = body.get("code_challenge", "")
-        
-        # Store code_verifier in response for frontend to save
-        code_verifier = secrets.token_urlsafe(96)[:128]
-        
+
+        # Schwab does not support PKCE — standard auth code flow only
         auth_url = (
             f"{SCHWAB_API_BASE}/v1/oauth/authorize?"
             f"client_id={client_id}&"
             f"redirect_uri={redirect_uri}&"
             f"response_type=code&"
-            f"scope=readonly&"
-            f"state={state}&"
-            f"code_challenge={code_challenge}&"
-            f"code_challenge_method=S256"
+            f"state={state}"
         )
-        
+
         return json_response({
             "authorization_url": auth_url,
-            "state": state,
-            "code_verifier": code_verifier
+            "state": state
         })
     except Exception as e:
         return json_response({"error": str(e)}, 500)
@@ -147,22 +146,35 @@ def oauth_schwab_callback(request: Request) -> Response:
         redirect_uri = body.get("redirect_uri", "https://ossaenz.github.io/trading_journal/")
         code_verifier = body.get("code_verifier", "")
         
+        print(f"[DEBUG] oauth_schwab_callback: code={code[:30] if code else 'None'}...")
+        print(f"[DEBUG] client_id={client_id}")
+        print(f"[DEBUG] redirect_uri={redirect_uri}")
+        print(f"[DEBUG] code_verifier={code_verifier[:30] if code_verifier else 'None'}...")
+        print(f"[DEBUG] SCHWAB_CLIENT_SECRET length={len(SCHWAB_CLIENT_SECRET)}")
+        
         if not code:
             return json_response({"error": "Missing authorization code"}, 400)
         
-        # Exchange code for token using Client Secret (safe on backend!)
+        # Exchange code for token using Basic Auth (Schwab requires credentials in header)
+        credentials = base64.b64encode(f"{client_id}:{SCHWAB_CLIENT_SECRET}".encode()).decode()
+        payload = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": redirect_uri,
+        }
+        if code_verifier:
+            payload["code_verifier"] = code_verifier
+        print(f"[DEBUG] Sending to Schwab: grant_type={payload['grant_type']}, client_id={client_id}, has_secret={bool(SCHWAB_CLIENT_SECRET)}")
+
         token_response = requests.post(
             f"{SCHWAB_API_BASE}/v1/oauth/token",
-            data={
-                "grant_type": "authorization_code",
-                "code": code,
-                "redirect_uri": redirect_uri,
-                "client_id": client_id,
-                "client_secret": SCHWAB_CLIENT_SECRET,  # 🔐 Never exposed to browser!
-                "code_verifier": code_verifier
-            },
+            data=payload,
+            headers={"Authorization": f"Basic {credentials}"},
             timeout=10
         )
+        
+        print(f"[DEBUG] Schwab response status: {token_response.status_code}")
+        print(f"[DEBUG] Schwab response text: {token_response.text[:500]}")
         
         if token_response.status_code != 200:
             error_text = token_response.text
@@ -184,6 +196,9 @@ def oauth_schwab_callback(request: Request) -> Response:
         })
         
     except Exception as e:
+        print(f"[DEBUG] Exception in oauth_schwab_callback: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return json_response({"error": f"Token exchange error: {str(e)}"}, 500)
 
 def oauth_schwab_refresh(request: Request) -> Response:
@@ -199,15 +214,15 @@ def oauth_schwab_refresh(request: Request) -> Response:
         if not refresh_token:
             return json_response({"error": "Missing refresh token"}, 400)
         
-        # Request new access token
+        # Request new access token using Basic Auth
+        credentials = base64.b64encode(f"{client_id}:{SCHWAB_CLIENT_SECRET}".encode()).decode()
         token_response = requests.post(
             f"{SCHWAB_API_BASE}/v1/oauth/token",
             data={
                 "grant_type": "refresh_token",
                 "refresh_token": refresh_token,
-                "client_id": client_id,
-                "client_secret": SCHWAB_CLIENT_SECRET  # 🔐 Safe on backend!
             },
+            headers={"Authorization": f"Basic {credentials}"},
             timeout=10
         )
         

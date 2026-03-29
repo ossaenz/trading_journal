@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -lah /e/gihub/trading_journal/client_secret_*)",
+      "Bash(gcloud functions:*)",
+      "Bash(python -c \":*)"
+    ]
+  }
+}
