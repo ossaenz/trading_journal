@@ -289,7 +289,7 @@
                 <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.4rem;">Google Client ID <span style="color:#999;font-weight:400;">(optional — for Drive backup)</span></label>
                 <input type="text" id="google-client-id" placeholder="xxxx.apps.googleusercontent.com">
             </div>
-            <button class="btn-primary" onclick="saveSetup()" style="width: 100%; padding: 1rem;">Save & Connect Schwab</button>
+            <button class="btn-primary" onclick="saveSetup()" style="width: 100%; padding: 1rem;">Save Settings</button>
             <button onclick="skipSetup()" style="width:100%;padding:0.6rem;background:none;border:none;color:#666;cursor:pointer;font-size:0.8rem;">Skip — I'll set this up later</button>
         </div>
 
@@ -863,13 +863,17 @@ function showSidebar(visible) {
 // SETUP
 // ============================================================================
 function saveSetup() {
-    const schwabId     = document.getElementById('schwab-client-id').value.trim();
-    const schwabSecret = document.getElementById('schwab-client-secret').value.trim();
-    const googleId     = document.getElementById('google-client-id').value.trim();
+    const schwabId = document.getElementById('schwab-client-id').value.trim();
+    const googleId = document.getElementById('google-client-id').value.trim();
 
-    if (schwabId)     { localStorage.setItem('schwab_client_id', schwabId);         CONFIG.schwabClientId = schwabId; }
-    if (schwabSecret) { localStorage.setItem('schwab_client_secret', schwabSecret); CONFIG.schwabClientSecret = schwabSecret; }
-    if (googleId)     { localStorage.setItem('google_client_id', googleId);         CONFIG.googleClientId = googleId; }
+    if (schwabId) { 
+        localStorage.setItem('schwab_client_id', schwabId);
+        CONFIG.schwabClientId = schwabId;
+    }
+    if (googleId) { 
+        localStorage.setItem('google_client_id', googleId);
+        CONFIG.googleClientId = googleId;
+    }
 
     document.getElementById('setup-modal').classList.remove('active');
     setupCompleted = true;
@@ -880,13 +884,7 @@ function saveSetup() {
     updateDashboardStats();
     setTimeout(() => initCharts(), 150);
 
-    // Auto-launch Schwab OAuth if credentials provided
-    if (schwabId && schwabSecret) {
-        showNotification('✓ Credentials saved — launching Schwab login...', 'success');
-        setTimeout(() => authenticateSchwab(), 1000);
-    } else {
-        showNotification('✓ Setup saved', 'success');
-    }
+    showNotification('✓ App Key saved', 'success');
 }
 
 function skipSetup() {
