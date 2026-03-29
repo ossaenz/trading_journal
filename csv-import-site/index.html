@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CSV Import / Backup — Trading Journal</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>CSV Import & Backup</h1>
+    <p class="muted">Standalone static page for importing CSV exports (thinkorswim / Schwab) and exporting JSON/CSV for backups.</p>
+
+    <section class="card">
+      <label class="file-label">Choose CSV file(s) (Trades, Positions, Activity)
+        <input id="file-input" type="file" accept="text/csv,text/plain" multiple>
+      </label>
+      <div class="controls">
+        <button id="merge-btn" disabled>Merge & Preview</button>
+        <button id="clear-btn" disabled>Clear</button>
+      </div>
+    </section>
+
+    <section id="preview-section" class="card hidden">
+      <h2>Preview (first 200 rows)</h2>
+      <div id="preview-info" class="muted"></div>
+      <div id="preview-table-wrap"></div>
+      <div class="controls">
+        <button id="download-json" disabled>Download JSON</button>
+        <button id="download-csv" disabled>Download CSV</button>
+        <button id="copy-clipboard" disabled>Copy JSON to clipboard</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Google Drive Backup</h2>
+      <p class="muted">You can download the JSON/CSV above and manually upload to Google Drive. For automated Drive uploads provide a Google OAuth Client ID below and authorize.</p>
+      <div class="drive-block">
+        <label>Google OAuth Client ID (optional)
+          <input id="gdrive-clientid" placeholder="Paste Google OAuth Client ID (optional)">
+        </label>
+        <div class="controls">
+          <button id="gdrive-auth" disabled>Authorize Drive</button>
+          <button id="gdrive-upload" disabled>Upload JSON to Drive</button>
+        </div>
+        <div id="gdrive-status" class="muted"></div>
+      </div>
+      <a class="link" href="README.md">Deployment & Drive instructions</a>
+    </section>
+
+    <footer class="muted">Keep this folder separate from your Vercel app — no changes made to production files.</footer>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <script src="import.js"></script>
+</body>
+</html>
