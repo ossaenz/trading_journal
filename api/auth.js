@@ -12,6 +12,15 @@ export default async function handler(req, res) {
   const { action, code } = req.query;
   const appUrl = (process.env.SCHWAB_REDIRECT_URI || '').replace(/\/api\/auth.*$/, '');
 
+  // Guard: misconfigured env vars → show clear error before redirecting
+  if (!process.env.SCHWAB_CLIENT_ID || !process.env.SCHWAB_REDIRECT_URI) {
+    return res.status(500).send(debugHtml('Missing env vars', {
+      SCHWAB_CLIENT_ID: process.env.SCHWAB_CLIENT_ID ? 'set' : 'MISSING',
+      SCHWAB_CLIENT_SECRET: process.env.SCHWAB_CLIENT_SECRET ? 'set' : 'MISSING',
+      SCHWAB_REDIRECT_URI: process.env.SCHWAB_REDIRECT_URI || 'MISSING',
+    }));
+  }
+
   // ── 1. Redirect user to Schwab login ──────────────────────────────────────
   if (action === 'login') {
     const state = crypto.randomBytes(16).toString('hex');
@@ -19,6 +28,7 @@ export default async function handler(req, res) {
       response_type: 'code',
       client_id: process.env.SCHWAB_CLIENT_ID,
       redirect_uri: process.env.SCHWAB_REDIRECT_URI,
+      scope: 'readonly',
       state,
     });
     return res.redirect(
@@ -53,10 +63,16 @@ export default async function handler(req, res) {
 
       const tokens = await tokenRes.json();
 
-      // On failure, redirect to app with error info so it's visible
+      // On failure, show an HTML debug page directly (fragments can silently
+      // disappear if appUrl is wrong; an inline page is always visible)
       if (!tokenRes.ok) {
-        const errMsg = encodeURIComponent(JSON.stringify(tokens));
-        return res.redirect(`${appUrl}/#auth_error=${errMsg}`);
+        console.error('[auth] Token exchange failed', tokenRes.status, tokens);
+        return res.status(400).send(debugHtml('Token exchange failed', {
+          http_status: tokenRes.status,
+          schwab_error: tokens,
+          redirect_uri_sent: process.env.SCHWAB_REDIRECT_URI,
+          tip: 'Ensure the redirect_uri above exactly matches the one registered in developer.schwab.com',
+        }));
       }
 
       // Redirect to app with tokens in fragment (never in query string)
@@ -64,7 +80,8 @@ export default async function handler(req, res) {
         `${appUrl}/#access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}&expires_in=${tokens.expires_in}`
       );
     } catch (err) {
-      return res.redirect(`${appUrl}/#auth_error=${encodeURIComponent(err.message)}`);
+      console.error('[auth] Token exchange exception', err);
+      return res.status(500).send(debugHtml('Token exchange exception', { error: err.message }));
     }
   }
 
@@ -98,4 +115,20 @@ export default async function handler(req, res) {
   }
 
   return res.status(404).json({ error: 'Unknown action' });
+}
+
+// Returns a plain HTML page that displays debug info visibly in the browser.
+// Only shows keys — never logs raw tokens or secrets.
+function debugHtml(title, details) {
+  const rows = Object.entries(details)
+    .map(([k, v]) => `<tr><td style="padding:6px 12px;font-weight:bold;white-space:nowrap">${k}</td><td style="padding:6px 12px;word-break:break-all">${JSON.stringify(v, null, 2)}</td></tr>`)
+    .join('');
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Auth Debug — ${title}</title>
+<style>body{font-family:monospace;background:#0d1117;color:#e6edf3;padding:32px}h2{color:#f85149}table{border-collapse:collapse;width:100%}tr:nth-child(odd){background:#161b22}a{color:#58a6ff}</style>
+</head><body>
+<h2>⚠ ${title}</h2>
+<table>${rows}</table>
+<p style="margin-top:24px"><a href="/">← Back to app</a></p>
+</body></html>`;
 }

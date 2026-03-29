@@ -8,7 +8,8 @@
 ### 1. Register Your App with Schwab
 1. Go to [developer.schwab.com](https://developer.schwab.com)
 2. Create an app → choose **"Individual Trader"**
-3. Set redirect URI to: `https://YOUR-APP.vercel.app/api/auth?action=callback`
+3. Set redirect URI to: `https://YOUR-APP.vercel.app/api/auth`
+	(Schwab requires an exact redirect URI match; do NOT include query string parameters.)
 4. Note your **Client ID** and **Client Secret**
 
 ### 2. Clone & Install
@@ -23,7 +24,7 @@ npm install -g vercel
 vercel env add SCHWAB_CLIENT_ID
 vercel env add SCHWAB_CLIENT_SECRET
 vercel env add SCHWAB_REDIRECT_URI
-# SCHWAB_REDIRECT_URI = https://YOUR-APP.vercel.app/api/auth?action=callback
+# SCHWAB_REDIRECT_URI = https://YOUR-APP.vercel.app/api/auth
 ```
 
 ### 4. Deploy
