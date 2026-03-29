@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   APEX TRADING DASHBOARD — app.js [ENHANCED]
+   OS Trades TRADING DASHBOARD — app.js [ENHANCED]
    Charles Schwab API Integration + Advanced Analytics Engine
 ═══════════════════════════════════════════════════════════════════ */
 
