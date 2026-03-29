@@ -50,9 +50,19 @@ function handleLogin() {
 
 function checkAuthCallback() {
   const hash = window.location.hash;
-  if (!hash.includes('access_token=')) return;
+  if (!hash) return;
 
   const params = new URLSearchParams(hash.slice(1));
+
+  // Show error if token exchange failed
+  const authError = params.get('auth_error') || params.get('error');
+  if (authError) {
+    window.history.replaceState({}, '', '/');
+    alert('Schwab auth failed:\n\n' + decodeURIComponent(authError));
+    return;
+  }
+
+  if (!hash.includes('access_token=')) return;
   const access  = params.get('access_token');
   const refresh = params.get('refresh_token');
   const expIn   = parseInt(params.get('expires_in') || '1800');
