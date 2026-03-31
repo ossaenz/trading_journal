@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
 <style>
 :root {
   --bg: #080b10;
@@ -187,13 +189,13 @@ nav { flex: 1; padding: 16px 10px; display: flex; flex-direction: column; gap: 2
 
 /* ── TOPBAR ── */
 .topbar {
-  height: var(--topbar-h);
+  min-height: var(--topbar-h);
   background: var(--bg2);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 28px;
+  padding: 8px 28px;
   flex-shrink: 0;
 }
 
@@ -211,7 +213,7 @@ nav { flex: 1; padding: 16px 10px; display: flex; flex-direction: column; gap: 2
   margin-top: 1px;
 }
 
-.topbar-right { display: flex; align-items: center; gap: 12px; }
+.topbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 
 .market-pill {
   display: flex;
@@ -541,6 +543,17 @@ tbody td {
   padding: 2px 7px;
   border-radius: 4px;
   font-size: 10px;
+}
+
+.badge-asgn {
+  background: rgba(245,197,66,0.10);
+  color: var(--gold);
+  border: 1px solid rgba(245,197,66,0.22);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 9px;
+  letter-spacing: 0.3px;
+  margin-left: 4px;
 }
 
 .empty-row td {
@@ -934,6 +947,22 @@ tbody td {
         <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Per-Ticker
       </a>
+      <a class="nav-item" data-tab="deepdive">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+        Deep Dive
+      </a>
+      <a class="nav-item" data-tab="strategy">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><path d="M3 6h18"/><path d="M3 12h12"/><path d="M3 18h8"/><circle cx="18" cy="12" r="3"/></svg>
+        Strategy
+      </a>
+      <a class="nav-item" data-tab="tax">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg>
+        Tax
+      </a>
+      <a class="nav-item" data-tab="reports">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M8 17V9"/><path d="M12 17V7"/><path d="M16 17v-4"/></svg>
+        Reports
+      </a>
       <div class="nav-section-label" style="margin-top:8px;">Records</div>
       <a class="nav-item" data-tab="trades">
         <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -975,6 +1004,11 @@ tbody td {
           <span class="ticker">SPY</span>
           <span class="price-up" id="spy-price">—</span>
         </div>
+        <input id="filter-from" class="input-field" type="date" style="width:135px;">
+        <input id="filter-to" class="input-field" type="date" style="width:135px;">
+        <input id="filter-symbol" class="input-field" placeholder="Symbol" style="width:90px; text-transform:uppercase;">
+        <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="applyGlobalFilters()">Apply</button>
+        <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="resetGlobalFilters()">Reset</button>
         <button class="btn btn-primary" style="font-size:11px;padding:6px 14px;" onclick="showTab('data')">+ Import CSV</button>
         <button class="btn-icon" title="Export JSON" onclick="exportData()">
           <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1038,6 +1072,9 @@ tbody td {
             <div class="stat-item"><span class="stat-label">Win Streak</span><span class="stat-val pos" id="stat-ws">0</span></div>
             <div class="stat-item"><span class="stat-label">Loss Streak</span><span class="stat-val neg" id="stat-ls">0</span></div>
             <div class="stat-item"><span class="stat-label">Proj. Annual</span><span class="stat-val pos" id="stat-annual">$0</span></div>
+            <div class="stat-item"><span class="stat-label">Account Value</span><span class="stat-val" id="stat-balance">$0</span></div>
+            <div class="stat-item"><span class="stat-label">Balance Δ</span><span class="stat-val" id="stat-bal-change">$0</span></div>
+            <div class="stat-item"><span class="stat-label">This Month</span><span class="stat-val" id="stat-month-pnl">$0</span></div>
           </div>
 
           <!-- Charts Row 1 -->
@@ -1135,6 +1172,194 @@ tbody td {
             </table>
           </div>
         </div>
+
+        <div id="ticker-detail" class="chart-panel mt2 hidden">
+          <div class="chart-header">
+            <span class="chart-title" id="ticker-detail-title">Ticker Detail</span>
+            <span class="chart-badge" id="ticker-detail-sub">Select a ticker</span>
+          </div>
+          <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;">
+            <div class="kpi"><div class="kpi-label">Net P&L</div><div class="kpi-val" id="td-net">$0.00</div></div>
+            <div class="kpi"><div class="kpi-label">Win Rate</div><div class="kpi-val" id="td-wr">0.0%</div></div>
+            <div class="kpi"><div class="kpi-label">Avg Win / Loss</div><div class="kpi-val" id="td-avg">$0 / $0</div></div>
+            <div class="kpi"><div class="kpi-label">Trades / Fees</div><div class="kpi-val" id="td-trades-fees">0 / $0</div></div>
+          </div>
+          <div class="chart-canvas-wrap h200 mb2"><canvas id="tickerDetailChart"></canvas></div>
+          <div class="table-scroll" style="max-height:220px;">
+            <table>
+              <thead><tr><th>Date</th><th>Side</th><th>Qty</th><th>Price</th><th>P&L</th><th>Type</th></tr></thead>
+              <tbody id="ticker-detail-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════ REPORTS ════════════════════════════════ -->
+      <section id="tab-reports" class="tab-section">
+        <div class="kpi-row" style="grid-template-columns:repeat(7,1fr);margin-bottom:16px;">
+          <div class="kpi"><div class="kpi-label">Filtered Trades</div><div class="kpi-val" id="rep-trades">0</div></div>
+          <div class="kpi"><div class="kpi-label">Closed Trades</div><div class="kpi-val" id="rep-closed">0</div></div>
+          <div class="kpi"><div class="kpi-label">Net P&L</div><div class="kpi-val" id="rep-net">$0.00</div></div>
+          <div class="kpi"><div class="kpi-label">Realized P&L</div><div class="kpi-val" id="rep-realized">$0.00</div></div>
+          <div class="kpi"><div class="kpi-label">Open Exposure</div><div class="kpi-val" id="rep-unrealized">$0.00</div></div>
+          <div class="kpi"><div class="kpi-label">Profit Factor</div><div class="kpi-val" id="rep-pf">0.00</div></div>
+          <div class="kpi"><div class="kpi-label">Expectancy</div><div class="kpi-val" id="rep-exp">$0.00</div></div>
+        </div>
+
+        <div class="kpi-row" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px;">
+          <div class="kpi"><div class="kpi-label">Cash Balance</div><div class="kpi-val" id="rep-cash">$0.00</div></div>
+          <div class="kpi"><div class="kpi-label">Est. Invested</div><div class="kpi-val" id="rep-invested">$0.00</div></div>
+          <div class="kpi"><div class="kpi-label">Est. Tied-Up</div><div class="kpi-val" id="rep-tied">$0.00</div></div>
+          <div class="kpi"><div class="kpi-label">Net Open Premium</div><div class="kpi-val" id="rep-open-premium">$0.00</div></div>
+          <div class="kpi"><div class="kpi-label">Open Positions</div><div class="kpi-val" id="rep-open-positions">0</div></div>
+        </div>
+
+        <div class="chart-grid chart-grid-2 mb2">
+          <div class="table-wrap">
+            <div class="table-controls">
+              <h3>Ticker Summary</h3>
+              <div class="flex gap2 items-center">
+                <button class="btn btn-outline" onclick="exportReportCSV()">Export Report CSV</button>
+                <button class="btn btn-outline" onclick="exportReportPDF()">Export Report PDF</button>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Ticker</th><th>Trades</th><th>Win Rate</th><th>P&L</th><th>Fees</th><th>Net</th></tr></thead>
+                <tbody id="rep-ticker-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <div class="table-controls"><h3>Monthly Report</h3></div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Month</th><th>Trades</th><th>Win Rate</th><th>P&L</th></tr></thead>
+                <tbody id="rep-monthly-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-grid chart-grid-2">
+          <div class="chart-panel">
+            <div class="chart-header"><span class="chart-title">Monthly Net P&L</span></div>
+            <div class="chart-canvas-wrap h220"><canvas id="repMonthlyChart"></canvas></div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-header"><span class="chart-title">Ticker Net P&L</span></div>
+            <div class="chart-canvas-wrap h220"><canvas id="repTickerChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════ DEEP DIVE ════════════════════════════════ -->
+      <section id="tab-deepdive" class="tab-section">
+        <div class="table-wrap mb2">
+          <div class="table-controls">
+            <h3>Ticker Search & Drilldown</h3>
+            <div class="flex gap2 items-center">
+              <input id="deepdive-symbol" class="input-field" placeholder="Type ticker (e.g. SPY)" style="width:220px; text-transform:uppercase;">
+              <button class="btn btn-outline" onclick="renderDeepDiveTab()">Analyze</button>
+            </div>
+          </div>
+          <div class="kpi-row" style="grid-template-columns:repeat(5,1fr);margin-top:8px;">
+            <div class="kpi"><div class="kpi-label">Trades</div><div class="kpi-val" id="dd-trades">0</div></div>
+            <div class="kpi"><div class="kpi-label">Net P&L</div><div class="kpi-val" id="dd-net">$0.00</div></div>
+            <div class="kpi"><div class="kpi-label">Win Rate</div><div class="kpi-val" id="dd-wr">0.0%</div></div>
+            <div class="kpi"><div class="kpi-label">Avg Win/Loss</div><div class="kpi-val" id="dd-avg">$0 / $0</div></div>
+            <div class="kpi"><div class="kpi-label">Fees</div><div class="kpi-val" id="dd-fees">$0.00</div></div>
+          </div>
+        </div>
+        <div class="chart-grid chart-grid-2 mb2">
+          <div class="chart-panel">
+            <div class="chart-header"><span class="chart-title">Cumulative P&L</span></div>
+            <div class="chart-canvas-wrap h220"><canvas id="ddEquityChart"></canvas></div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-header"><span class="chart-title">Monthly P&L</span></div>
+            <div class="chart-canvas-wrap h220"><canvas id="ddMonthlyChart"></canvas></div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-controls"><h3>Ticker Transactions</h3></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Date</th><th>Symbol</th><th>Type</th><th>Side</th><th>Qty</th><th>Price</th><th>Commission</th><th>P&L</th></tr></thead>
+              <tbody id="dd-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════ STRATEGY ════════════════════════════════ -->
+      <section id="tab-strategy" class="tab-section">
+        <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+          <div class="kpi"><div class="kpi-label">Strategies</div><div class="kpi-val" id="str-count">0</div></div>
+          <div class="kpi"><div class="kpi-label">Best Strategy</div><div class="kpi-val" id="str-best">—</div></div>
+          <div class="kpi"><div class="kpi-label">Worst Strategy</div><div class="kpi-val" id="str-worst">—</div></div>
+          <div class="kpi"><div class="kpi-label">Strategy PF (Best)</div><div class="kpi-val" id="str-best-pf">0.00</div></div>
+        </div>
+        <div class="chart-grid chart-grid-2 mb2">
+          <div class="chart-panel">
+            <div class="chart-header"><span class="chart-title">Strategy Net P&L</span></div>
+            <div class="chart-canvas-wrap h220"><canvas id="strategyChart"></canvas></div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-header"><span class="chart-title">Strategy Win Rate</span></div>
+            <div class="chart-canvas-wrap h220"><canvas id="strategyWRChart"></canvas></div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-controls"><h3>Strategy Breakdown</h3></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Strategy</th><th>Trades</th><th>Win Rate</th><th>P&L</th><th>Fees</th><th>Net</th><th>PF</th></tr></thead>
+              <tbody id="strategy-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════ TAX ════════════════════════════════ -->
+      <section id="tab-tax" class="tab-section">
+        <div class="table-wrap mb2">
+          <div class="table-controls">
+            <h3>Tax Estimate</h3>
+            <div class="flex gap2 items-center">
+              <label class="field-label" style="margin:0;">ST Rate</label><input id="tax-st-rate" class="input-field" type="number" step="0.1" value="35" style="width:80px;">
+              <label class="field-label" style="margin:0;">LT Rate</label><input id="tax-lt-rate" class="input-field" type="number" step="0.1" value="15" style="width:80px;">
+              <button class="btn btn-outline" onclick="renderTaxTab()">Recalculate</button>
+              <button class="btn btn-outline" onclick="exportTaxCSV()">Export Tax CSV</button>
+            </div>
+          </div>
+          <div class="kpi-row" style="grid-template-columns:repeat(5,1fr);margin-top:8px;">
+            <div class="kpi"><div class="kpi-label">ST Taxable P&L</div><div class="kpi-val" id="tax-st-pnl">$0.00</div></div>
+            <div class="kpi"><div class="kpi-label">LT Taxable P&L</div><div class="kpi-val" id="tax-lt-pnl">$0.00</div></div>
+            <div class="kpi"><div class="kpi-label">Estimated ST Tax</div><div class="kpi-val" id="tax-st-due">$0.00</div></div>
+            <div class="kpi"><div class="kpi-label">Estimated LT Tax</div><div class="kpi-val" id="tax-lt-due">$0.00</div></div>
+            <div class="kpi"><div class="kpi-label">Total Estimated Tax</div><div class="kpi-val" id="tax-total-due">$0.00</div></div>
+          </div>
+        </div>
+        <div class="chart-grid chart-grid-2 mb2">
+          <div class="chart-panel">
+            <div class="chart-header"><span class="chart-title">Monthly Taxable P&L</span></div>
+            <div class="chart-canvas-wrap h220"><canvas id="taxMonthlyChart"></canvas></div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-header"><span class="chart-title">ST vs LT Mix</span></div>
+            <div class="chart-canvas-wrap h220"><canvas id="taxMixChart"></canvas></div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-controls"><h3>Tax Lots (Estimated)</h3></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Date</th><th>Symbol</th><th>P&L</th><th>Class</th><th>Hold Days</th></tr></thead>
+              <tbody id="tax-tbody"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <!-- ════════════════════════════════ TRADE LOG ════════════════════════════════ -->
@@ -1159,7 +1384,7 @@ tbody td {
                 <tr>
                   <th>Date</th><th>Symbol</th><th>Type</th><th>Side</th>
                   <th>Qty</th><th>Price</th><th>Strike</th><th>Expiry</th>
-                  <th>Commission</th><th>Value</th>
+                  <th>Commission</th><th>P&amp;L</th>
                 </tr>
               </thead>
               <tbody id="trades-tbody"></tbody>
@@ -1204,9 +1429,16 @@ tbody td {
             <div class="upload-sub">Supports thinkorswim, Schwab, TD Ameritrade · Data stays local</div>
           </label>
 
-          <div class="flex gap2 mb2">
+          <div class="flex gap2 mb2" style="flex-wrap:wrap;align-items:center;">
             <button id="process-btn" class="btn btn-primary" disabled>⚡ Process Data</button>
             <button id="clear-btn" class="btn btn-outline" disabled>Clear All</button>
+            <button class="btn btn-outline" onclick="exportData()" title="Export data as JSON for backup">⬇ Backup JSON</button>
+            <button class="btn btn-outline" onclick="importFromJSON()" title="Restore from a previously exported JSON backup">⬆ Restore Backup</button>
+            <button id="gdrive-signin-btn" class="btn btn-outline" onclick="gdriveSignIn()" title="Sign in with Google to sync data across devices">☁ Sign in with Google</button>
+            <button id="gdrive-sync-btn" class="btn btn-outline hidden" onclick="saveToDrive()" title="Save trades to Google Drive">💾 Save to Drive</button>
+            <button id="gdrive-load-btn" class="btn btn-outline hidden" onclick="loadFromDrive()" title="Load trades from Google Drive">📥 Load from Drive</button>
+            <button id="gdrive-signout-btn" class="btn btn-outline hidden" onclick="gdriveSignOut()" style="font-size:11px;">Sign Out</button>
+            <span id="drive-sync-status" style="font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;align-self:center;">Drive: not connected</span>
             <select id="preset-select" class="input-field">
               <option value="auto">Auto-detect format</option>
               <option value="tos">thinkorswim</option>
@@ -1265,15 +1497,158 @@ tbody td {
 
 <script>
 /* ═══════════════════════════ STATE ═══════════════════════════ */
-let rawTrades = JSON.parse(localStorage.getItem('tickeros_trades') || '[]');
+
+/* One-time migration: convert old onyx_rows → tickeros_trades format with FIFO P&L */
+(function migrateOnyxRows() {
+  if (localStorage.getItem('tickeros_trades')) return; // already migrated or user has V2 data
+  const raw = localStorage.getItem('onyx_rows');
+  if (!raw) return;
+  try {
+    const onyxRows = JSON.parse(raw);
+    if (!Array.isArray(onyxRows) || !onyxRows.length) return;
+
+    // First pass: convert to V2 shape (positive qty, explicit side)
+    const trades = onyxRows.map(r => ({
+      date: (r.date || '').slice(0, 10),
+      symbol: (r.symbol || 'UNKNOWN').toUpperCase(),
+      type: r.isOption ? (r.optionType || 'CALL') : 'STOCK',
+      rawSymbol: (r.symbol || 'UNKNOWN').toUpperCase(),
+      side: (r.side || '').toUpperCase(),
+      qty: Math.abs(Number(r.qty) || 0),
+      price: Number(r.price) || 0,
+      commission: Number(r.commission) || 0,
+      strike: r.strike || null,
+      expiry: r.expiry || null,
+      multiplier: Number(r.multiplier) || 1,
+      pnl: null,
+    }));
+
+    // Second pass: FIFO P&L matching so V2 calcMetrics shows real numbers
+    const queues = {}; // symbol → [{side, price, qty, mult}]
+    trades.sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(trade => {
+      const sym = trade.rawSymbol;
+      if (!queues[sym]) queues[sym] = [];
+      const q = queues[sym];
+      const mult = trade.multiplier || 1;
+      let rem = trade.qty;
+      let closedPnl = 0;
+      let didClose = false;
+
+      if (trade.side === 'SELL') {
+        // Close open longs (buy-write, covered call buy-back, etc.)
+        while (rem > 0 && q.length && q[0].side === 'BUY') {
+          const lot = q[0];
+          const take = Math.min(lot.qty, rem);
+          closedPnl += take * (trade.price - lot.price) * (lot.mult || mult);
+          lot.qty -= take; rem -= take;
+          if (lot.qty <= 0) q.shift();
+          didClose = true;
+        }
+        if (rem > 0) q.push({ side: 'SELL', price: trade.price, qty: rem, mult });
+      } else if (trade.side === 'BUY') {
+        // Close open shorts (buy-to-close on sold options/stocks)
+        while (rem > 0 && q.length && q[0].side === 'SELL') {
+          const lot = q[0];
+          const take = Math.min(lot.qty, rem);
+          closedPnl += take * (lot.price - trade.price) * (lot.mult || mult);
+          lot.qty -= take; rem -= take;
+          if (lot.qty <= 0) q.shift();
+          didClose = true;
+        }
+        if (rem > 0) q.push({ side: 'BUY', price: trade.price, qty: rem, mult });
+      }
+
+      if (didClose) trade.pnl = +(closedPnl).toFixed(2);
+    });
+
+    localStorage.setItem('tickeros_trades', JSON.stringify(trades));
+    localStorage.removeItem('onyx_rows');
+    localStorage.removeItem('onyx_metrics');
+    localStorage.removeItem('onyx_dividends');
+    console.log('[TickerOS] Migrated', trades.length, 'trades with FIFO P&L from onyx_rows');
+  } catch(e) { console.warn('[TickerOS] Migration failed', e); }
+})();
+
+const RESERVED_SYMBOL_WORDS = new Set([
+  'BOT', 'BOUGHT', 'BUY', 'SOLD', 'SELL', 'UPON',
+  'DIAGONAL', 'WEEKLYS', 'CALL', 'PUT', 'CBOE', 'PHLX', 'NASDAQ'
+]);
+
+function normalizeTickerSymbol(sym) {
+  const s = String(sym || '').trim().toUpperCase();
+  if (!/^[A-Z]{1,5}$/.test(s)) return '';
+  if (RESERVED_SYMBOL_WORDS.has(s)) return '';
+  return s;
+}
+
+function sanitizeStoredTrades(trades) {
+  const out = [];
+  (Array.isArray(trades) ? trades : []).forEach(t => {
+    const rawBase = String(t?.rawSymbol || '').split('_')[0];
+    const sym = normalizeTickerSymbol(t?.symbol) || normalizeTickerSymbol(rawBase);
+    if (!sym) return;
+    out.push({ ...t, symbol: sym });
+  });
+  return out;
+}
+
+let rawTrades = sanitizeStoredTrades(JSON.parse(localStorage.getItem('tickeros_trades') || '[]'));
+let rawBalances = JSON.parse(localStorage.getItem('tickeros_balances') || '[]');
 let parsedFiles = [];
 let charts = {};
+let selectedTicker = '';
+
+localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
+
+function getFilteredTrades() {
+  const from = document.getElementById('filter-from')?.value || '';
+  const to = document.getElementById('filter-to')?.value || '';
+  const symbol = (document.getElementById('filter-symbol')?.value || '').trim().toUpperCase();
+  return rawTrades.filter(t => {
+    const d = String(t.date || '').slice(0, 10);
+    if (from && d && d < from) return false;
+    if (to && d && d > to) return false;
+    if (symbol && String(t.symbol || '').toUpperCase() !== symbol) return false;
+    return true;
+  });
+}
+
+function getFilteredBalances() {
+  const from = document.getElementById('filter-from')?.value || '';
+  const to = document.getElementById('filter-to')?.value || '';
+  return rawBalances.filter(b => {
+    const d = String(b.date || '').slice(0, 10);
+    if (from && d && d < from) return false;
+    if (to && d && d > to) return false;
+    return true;
+  });
+}
+
+function applyGlobalFilters() {
+  selectedTicker = '';
+  const active = document.querySelector('.nav-item.active')?.dataset.tab || 'dashboard';
+  showTab(active);
+}
+
+function resetGlobalFilters() {
+  const fromEl = document.getElementById('filter-from');
+  const toEl = document.getElementById('filter-to');
+  const symEl = document.getElementById('filter-symbol');
+  if (fromEl) fromEl.value = '';
+  if (toEl) toEl.value = '';
+  if (symEl) symEl.value = '';
+  applyGlobalFilters();
+}
 
 /* ═══════════════════════════ NAVIGATION ═══════════════════════════ */
 const pageMeta = {
   dashboard: ['Dashboard', 'Your complete trading performance overview'],
   pnl:       ['P&L Analysis', 'Detailed profit & loss breakdown'],
   tickers:   ['Per-Ticker', 'Breakdown by individual symbol'],
+  deepdive:  ['Deep Dive', 'Ticker-level transaction and performance drilldown'],
+  strategy:  ['Strategy', 'Performance by strategy archetype'],
+  tax:       ['Tax', 'Estimated tax view by short/long classification'],
+  reports:   ['Reports', 'Period, ticker, and performance reporting'],
   trades:    ['Trade Log', 'Full execution history'],
   calendar:  ['Calendar', 'Daily P&L activity map'],
   data:      ['Data Center', 'Import & manage your CSV data'],
@@ -1293,10 +1668,15 @@ function showTab(tab) {
   const [title, sub] = pageMeta[tab] || [tab, ''];
   document.getElementById('page-title').textContent = title;
   document.getElementById('page-sub').textContent = sub;
+  if (tab === 'dashboard') renderDashboard();
   if (tab === 'tickers') renderTickerTab();
+  if (tab === 'deepdive') renderDeepDiveTab();
+  if (tab === 'strategy') renderStrategyTab();
+  if (tab === 'tax') renderTaxTab();
   if (tab === 'trades') renderTradeLog();
   if (tab === 'calendar') renderCalendar();
   if (tab === 'pnl') renderPnlTab();
+  if (tab === 'reports') renderReportsTab();
 }
 
 /* ═══════════════════════════ CHART DEFAULTS ═══════════════════════════ */
@@ -1318,12 +1698,19 @@ function mkChart(id, type, data, opts = {}) {
 /* ═══════════════════════════ METRICS CALCULATOR ═══════════════════════════ */
 function calcMetrics(trades) {
   const closed = trades.filter(t => t.pnl != null);
+  const open = trades.filter(t => t.pnl == null);
   const wins = closed.filter(t => t.pnl > 0);
   const losses = closed.filter(t => t.pnl <= 0);
   const pnl = closed.reduce((s, t) => s + t.pnl, 0);
+  const realizedPnl = pnl;
   const grossW = wins.reduce((s, t) => s + t.pnl, 0);
   const grossL = Math.abs(losses.reduce((s, t) => s + t.pnl, 0));
   const comm = trades.reduce((s, t) => s + (t.commission || 0), 0);
+  const unrealizedProxy = open.reduce((s, t) => {
+    const mult = t.type !== 'STOCK' ? 100 : 1;
+    const cashFlow = (t.side === 'SELL' ? 1 : -1) * (Number(t.qty || 0) * Number(t.price || 0) * mult);
+    return s + cashFlow - Number(t.commission || 0);
+  }, 0);
   const wr = closed.length ? wins.length / closed.length : 0;
   const avgW = wins.length ? grossW / wins.length : 0;
   const avgL = losses.length ? grossL / losses.length : 0;
@@ -1356,6 +1743,28 @@ function calcMetrics(trades) {
     byTicker[sym].comm += t.commission || 0;
   });
 
+  const byStrategy = {};
+  closed.forEach(t => {
+    const key = inferStrategy(t);
+    if (!byStrategy[key]) byStrategy[key] = { pnls: [], fees: 0, wins: 0, losses: 0 };
+    byStrategy[key].pnls.push(t.pnl);
+    byStrategy[key].fees += Number(t.commission || 0);
+    if (t.pnl > 0) byStrategy[key].wins += 1;
+    else byStrategy[key].losses += 1;
+  });
+
+  const taxLots = closed.map(t => {
+    const holdDays = Number(t.holdDays || t.daysHeld || 0);
+    const taxClass = holdDays >= 365 ? 'LT' : 'ST';
+    return {
+      date: String(t.date || '').slice(0, 10),
+      symbol: t.symbol || 'UNKNOWN',
+      pnl: Number(t.pnl || 0),
+      holdDays,
+      taxClass,
+    };
+  });
+
   // By type
   const typeCounts = {};
   trades.forEach(t => {
@@ -1370,12 +1779,119 @@ function calcMetrics(trades) {
     daysTraded = Math.max(1, (new Date(lastDate) - new Date(firstDate)) / 86400000);
   }
   const annualPnl = pnl / daysTraded * 365;
+  const openCapital = computeOpenCapitalMetrics(trades);
 
   return {
-    trades, closed, wins, losses, pnl, grossW, grossL, comm, wr, avgW, avgL,
+    trades, closed, open, wins, losses, pnl, realizedPnl, unrealizedProxy, grossW, grossL, comm, wr, avgW, avgL,
     pf, exp, maxDD, bestWS, bestLS, equity, dates, byDate, byTicker, typeCounts,
-    annualPnl, firstDate, lastDate,
+    byStrategy, taxLots, annualPnl, firstDate, lastDate, openCapital,
   };
+}
+
+function computeOpenCapitalMetrics(trades) {
+  const queues = {};
+  const sorted = [...(Array.isArray(trades) ? trades : [])].sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+
+  sorted.forEach(t => {
+    const key = t.rawSymbol || `${t.symbol || 'UNKNOWN'}_${t.type || 'UNKNOWN'}`;
+    if (!queues[key]) queues[key] = [];
+    const q = queues[key];
+
+    const side = String(t.side || '').toUpperCase();
+    let rem = Math.abs(Number(t.qty || 0));
+    if (!Number.isFinite(rem) || rem <= 0 || (side !== 'BUY' && side !== 'SELL')) return;
+
+    const type = String(t.type || 'STOCK').toUpperCase();
+    const mult = Number(t.mult || (type !== 'STOCK' ? 100 : 1)) || 1;
+    const price = Math.abs(Number(t.price || 0)) || 0;
+    const strike = Number(t.strike || 0) || 0;
+
+    const matchAgainst = side === 'BUY' ? 'SELL' : 'BUY';
+    while (rem > 0.0001 && q.length && q[0].side === matchAgainst) {
+      const lot = q[0];
+      const take = Math.min(lot.qty, rem);
+      lot.qty -= take;
+      rem -= take;
+      if (lot.qty < 0.0001) q.shift();
+    }
+
+    if (rem > 0.0001) {
+      q.push({
+        side,
+        qty: rem,
+        type,
+        symbol: String(t.symbol || 'UNKNOWN'),
+        price,
+        mult,
+        strike,
+      });
+    }
+  });
+
+  let openStockCostBasis = 0;
+  let shortStockExposure = 0;
+  let longOptionDebit = 0;
+  let shortPutCollateral = 0;
+  let shortCallNotional = 0;
+  let netOpenPremium = 0;
+  let openLots = 0;
+  const openSymbols = new Set();
+
+  Object.values(queues).forEach(lots => {
+    lots.forEach(lot => {
+      if (!lot || lot.qty < 0.0001) return;
+      openLots += 1;
+      openSymbols.add(lot.symbol || 'UNKNOWN');
+
+      const entryNotional = Number((lot.qty * lot.price * lot.mult).toFixed(2));
+      if (lot.type === 'STOCK') {
+        if (lot.side === 'BUY') openStockCostBasis += entryNotional;
+        if (lot.side === 'SELL') shortStockExposure += entryNotional;
+        return;
+      }
+
+      if (lot.side === 'BUY') {
+        longOptionDebit += entryNotional;
+        netOpenPremium -= entryNotional;
+      } else {
+        netOpenPremium += entryNotional;
+        if (lot.type === 'PUT') {
+          shortPutCollateral += (lot.strike > 0 ? lot.qty * lot.strike * 100 : entryNotional);
+        }
+        if (lot.type === 'CALL') {
+          shortCallNotional += (lot.strike > 0 ? lot.qty * lot.strike * 100 : entryNotional);
+        }
+      }
+    });
+  });
+
+  const invested = openStockCostBasis + longOptionDebit;
+  const tiedUp = invested + shortStockExposure + shortPutCollateral;
+
+  return {
+    openStockCostBasis: +openStockCostBasis.toFixed(2),
+    shortStockExposure: +shortStockExposure.toFixed(2),
+    longOptionDebit: +longOptionDebit.toFixed(2),
+    shortPutCollateral: +shortPutCollateral.toFixed(2),
+    shortCallNotional: +shortCallNotional.toFixed(2),
+    netOpenPremium: +netOpenPremium.toFixed(2),
+    invested: +invested.toFixed(2),
+    tiedUp: +tiedUp.toFixed(2),
+    openLots,
+    openSymbols: openSymbols.size,
+  };
+}
+
+function inferStrategy(t) {
+  const type = String(t.type || '').toUpperCase();
+  const side = String(t.side || '').toUpperCase();
+  if (type === 'PUT' && side === 'SELL') return 'Cash-Secured Put';
+  if (type === 'CALL' && side === 'SELL') return 'Covered Call / Short Call';
+  if (type === 'PUT' && side === 'BUY') return 'Long Put / Hedge';
+  if (type === 'CALL' && side === 'BUY') return 'Long Call';
+  if (type === 'STOCK' && side === 'BUY') return 'Stock Long Entry';
+  if (type === 'STOCK' && side === 'SELL') return 'Stock Exit / Short Sale';
+  return `${type || 'UNKNOWN'} ${side || 'TRADE'}`.trim();
 }
 
 /* ═══════════════════════════ DEMO DATA ═══════════════════════════ */
@@ -1404,12 +1920,38 @@ function generateDemoData() {
 
 /* ═══════════════════════════ RENDER DASHBOARD ═══════════════════════════ */
 function renderDashboard() {
-  const trades = rawTrades.length ? rawTrades : generateDemoData();
+  const trades = getFilteredTrades();
+  const balances = getFilteredBalances().slice().sort((a,b) => String(a.date).localeCompare(String(b.date)));
   const m = calcMetrics(trades);
 
   const hasTrades = rawTrades.length > 0;
-  document.getElementById('data-status').textContent = hasTrades ? `${rawTrades.length} trades loaded` : 'Demo data';
-  document.getElementById('trade-count-label').textContent = hasTrades ? `${m.closed.length} closed` : 'Load real data in Data Center';
+  const hasFiltered = trades.length > 0;
+  document.getElementById('dash-empty')?.classList.toggle('hidden', hasTrades);
+  document.getElementById('dash-content')?.classList.toggle('hidden', !hasTrades);
+  document.getElementById('data-status').textContent = hasTrades ? `${rawTrades.length} trades loaded` : 'No data';
+  document.getElementById('trade-count-label').textContent = hasTrades ? `${m.closed.length} closed (filtered)` : 'Import CSV in Data Center';
+  if (!hasTrades) return;
+
+  const latestBalAny = balances.length ? Number(balances[balances.length - 1].balance || 0) : null;
+  const prevBalAny = balances.length > 1 ? Number(balances[balances.length - 2].balance || 0) : null;
+  const balDeltaAny = latestBalAny != null && prevBalAny != null ? +(latestBalAny - prevBalAny).toFixed(2) : null;
+  el('stat-balance', latestBalAny != null ? '$' + latestBalAny.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—');
+  const balDeltaElAny = document.getElementById('stat-bal-change');
+  if (balDeltaElAny) {
+    balDeltaElAny.classList.remove('pos', 'neg');
+    if (balDeltaAny == null) {
+      balDeltaElAny.textContent = '—';
+    } else {
+      balDeltaElAny.textContent = `${balDeltaAny >= 0 ? '+' : '-'}$${Math.abs(balDeltaAny).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+      if (balDeltaAny > 0) balDeltaElAny.classList.add('pos');
+      if (balDeltaAny < 0) balDeltaElAny.classList.add('neg');
+    }
+  }
+
+  if (!hasFiltered) {
+    document.getElementById('trade-count-label').textContent = 'No data in filter range';
+    return;
+  }
 
   // KPIs
   const fmt = v => (v >= 0 ? '+' : '') + '$' + Math.abs(v).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -1437,6 +1979,10 @@ function renderDashboard() {
   el('stat-ws', m.bestWS);
   el('stat-ls', m.bestLS);
   el('stat-annual', fmt(m.annualPnl));
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const monthPnl = m.dates.filter(d => d.slice(0, 7) === thisMonth).reduce((s, d) => s + m.byDate[d], 0);
+  const monthEl = document.getElementById('stat-month-pnl');
+  if (monthEl) { monthEl.textContent = (monthPnl >= 0 ? '+' : '') + '$' + Math.abs(monthPnl).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); monthEl.className = 'stat-val ' + (monthPnl >= 0 ? 'pos' : 'neg'); }
 
   // Equity chart
   mkChart('equityChart', 'line', {
@@ -1487,7 +2033,7 @@ function renderDashboard() {
 
 /* ═══════════════════════════ P&L TAB ═══════════════════════════ */
 function renderPnlTab() {
-  const trades = rawTrades.length ? rawTrades : generateDemoData();
+  const trades = getFilteredTrades();
   const m = calcMetrics(trades);
 
   const fmt = v => (v >= 0 ? '+' : '') + '$' + Math.abs(v).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -1518,8 +2064,13 @@ function renderPnlTab() {
 
   // Histogram
   const pnls = m.closed.map(t => t.pnl);
+  if (!pnls.length) {
+    mkChart('histChart', 'bar', { labels: ['No data'], datasets: [{ data: [0], backgroundColor: 'rgba(74,96,112,0.5)' }] }, { plugins: { legend: { display: false } } });
+    mkChart('ddChart', 'line', { labels: ['No data'], datasets: [{ data: [0], borderColor: NEG, borderWidth: 1.5 }] }, { plugins: { legend: { display: false } } });
+    return;
+  }
   const min = Math.min(...pnls), max = Math.max(...pnls);
-  const bins = 12, step = (max - min) / bins;
+  const bins = 12, step = Math.max(1, (max - min) / bins);
   const hist = Array(bins).fill(0);
   pnls.forEach(v => { const i = Math.min(bins-1, Math.floor((v - min) / step)); hist[i]++; });
   const histLabels = Array.from({length: bins}, (_, i) => '$' + (min + i*step).toFixed(0));
@@ -1544,10 +2095,11 @@ function renderPnlTab() {
 
 /* ═══════════════════════════ TICKER TAB ═══════════════════════════ */
 function renderTickerTab() {
-  const trades = rawTrades.length ? rawTrades : generateDemoData();
+  const trades = getFilteredTrades();
   const m = calcMetrics(trades);
   const grid = document.getElementById('ticker-grid');
   const tbody = document.getElementById('ticker-tbody');
+  const detail = document.getElementById('ticker-detail');
   grid.innerHTML = ''; tbody.innerHTML = '';
 
   const rows = Object.entries(m.byTicker).map(([sym, data]) => {
@@ -1563,13 +2115,17 @@ function renderTickerTab() {
   rows.forEach(r => {
     // Card
     const card = document.createElement('div');
-    card.className = 'ticker-card';
+    card.className = 'ticker-card' + (selectedTicker === r.sym ? ' selected' : '');
     card.innerHTML = `
       <div class="ticker-card-sym">${r.sym}</div>
       <div class="ticker-card-pnl ${r.net>=0?'text-pos':'text-neg'}">${r.net>=0?'+':''}$${Math.abs(r.net).toFixed(2)}</div>
       <div class="ticker-card-meta"><span>${r.trades} trades</span><span>${(r.wr*100).toFixed(0)}% WR</span></div>
       <div class="win-bar"><div class="win-bar-fill" style="width:${r.wr*100}%;background:${r.wr>=0.5?POS:NEG}"></div></div>
     `;
+    card.addEventListener('click', () => {
+      selectedTicker = r.sym;
+      renderTickerTab();
+    });
     grid.appendChild(card);
 
     // Table row
@@ -1586,17 +2142,78 @@ function renderTickerTab() {
       <td class="td-warn">-$${r.comm.toFixed(2)}</td>
       <td class="${r.net>=0?'td-pos':'td-neg'}" style="font-weight:700">${r.net>=0?'+':''}$${Math.abs(r.net).toFixed(2)}</td>
     `;
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', () => {
+      selectedTicker = r.sym;
+      renderTickerTab();
+    });
     tbody.appendChild(tr);
   });
 
   if (!rows.length) {
     tbody.innerHTML = '<tr class="empty-row"><td colspan="10">No trade data available</td></tr>';
+    detail?.classList.add('hidden');
+    return;
   }
+
+  if (!selectedTicker) selectedTicker = rows[0].sym;
+  renderTickerDetail(selectedTicker, trades);
+}
+
+function renderTickerDetail(sym, trades) {
+  const detail = document.getElementById('ticker-detail');
+  const title = document.getElementById('ticker-detail-title');
+  const sub = document.getElementById('ticker-detail-sub');
+  const tbody = document.getElementById('ticker-detail-tbody');
+  if (!detail || !title || !sub || !tbody) return;
+
+  const rows = trades.filter(t => String(t.symbol || '').toUpperCase() === String(sym || '').toUpperCase());
+  if (!rows.length) {
+    detail.classList.add('hidden');
+    return;
+  }
+  detail.classList.remove('hidden');
+
+  const m = calcMetrics(rows);
+  const ws = m.closed.filter(t => t.pnl > 0);
+  const ls = m.closed.filter(t => t.pnl <= 0);
+  const avgW = ws.length ? ws.reduce((s,t)=>s+t.pnl,0)/ws.length : 0;
+  const avgL = ls.length ? Math.abs(ls.reduce((s,t)=>s+t.pnl,0)/ls.length) : 0;
+
+  title.textContent = `${sym} Deep Dive`;
+  sub.textContent = `${rows.length} trades in selected filter range`;
+  el('td-net', `${m.pnl >= 0 ? '+' : '-'}$${Math.abs(m.pnl).toFixed(2)}`); styleSign('td-net', m.pnl);
+  el('td-wr', `${(m.wr * 100).toFixed(1)}%`); styleSign('td-wr', m.wr - 0.5);
+  el('td-avg', `$${avgW.toFixed(2)} / -$${avgL.toFixed(2)}`);
+  el('td-trades-fees', `${rows.length} / $${m.comm.toFixed(2)}`);
+
+  const byDay = {};
+  m.closed.forEach(t => {
+    const d = String(t.date || '').slice(0, 10);
+    byDay[d] = (byDay[d] || 0) + t.pnl;
+  });
+  const dayKeys = Object.keys(byDay).sort();
+  let running = 0;
+  const equity = dayKeys.map(d => {
+    running += byDay[d];
+    return +running.toFixed(2);
+  });
+  mkChart('tickerDetailChart', 'line', {
+    labels: dayKeys.length ? dayKeys : ['No closed trades'],
+    datasets: [{ data: dayKeys.length ? equity : [0], borderColor: ACCENT, borderWidth: 2, pointRadius: 0, tension: 0.3 }]
+  }, { plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } });
+
+  tbody.innerHTML = '';
+  rows.slice().sort((a,b) => String(a.date).localeCompare(String(b.date))).slice(-50).reverse().forEach(t => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="td-muted">${String(t.date||'').slice(0,10)}</td><td>${t.side||'—'}</td><td>${t.qty||'—'}</td><td>$${(+((t.price)||0)).toFixed(2)}</td><td class="${t.pnl!=null?(t.pnl>=0?'td-pos':'td-neg'):''}">${t.pnl!=null?`${t.pnl>=0?'+':'-'}$${Math.abs(t.pnl).toFixed(2)}`:'—'}</td><td>${t.type||'—'}</td>`;
+    tbody.appendChild(tr);
+  });
 }
 
 /* ═══════════════════════════ TRADE LOG ═══════════════════════════ */
 function renderTradeLog(filter = 'all') {
-  const trades = rawTrades.length ? rawTrades : generateDemoData();
+  const trades = getFilteredTrades();
   const tbody = document.getElementById('trades-tbody');
   const search = (document.getElementById('trade-search')?.value || '').toLowerCase();
 
@@ -1613,21 +2230,34 @@ function renderTradeLog(filter = 'all') {
   }
 
   filtered.slice().reverse().forEach(t => {
-    const typeBadge = t.type === 'PUT' ? '<span class="badge-put">PUT</span>' : t.type === 'CALL' ? '<span class="badge-call">CALL</span>' : '<span class="badge-stock">STK</span>';
+    const typeBadge = t.type === 'PUT' ? '<span class="badge-put">PUT</span>'
+                    : t.type === 'CALL' ? '<span class="badge-call">CALL</span>'
+                    : '<span class="badge-stock">STK</span>';
+    const asgnBadge = t.fromAssignment ? '<span class="badge-asgn">ASGN</span>' : '';
     const sideBadge = t.side === 'BUY' ? '<span class="badge-buy">BUY</span>' : '<span class="badge-sell">SELL</span>';
-    const val = t.price && t.qty ? (t.price * t.qty * (t.type !== 'STOCK' ? 100 : 1)) : 0;
+
+    // For assignment-generated stock rows, show the source option's strike/expiry
+    // so the accountant can trace the chain in one glance.
+    let displayStrike = t.strike ?? '—';
+    let displayExpiry = t.expiry ?? '—';
+    if (t.fromAssignment && t.assignedFromOption) {
+      const parts = t.assignedFromOption.split('_'); // symbol_expiry_strike_type
+      if (parts.length >= 4) { displayExpiry = parts[1]; displayStrike = parts[2]; }
+    }
+
     const tr = document.createElement('tr');
+    if (t.fromAssignment) tr.style.borderLeft = '2px solid var(--gold)';
     tr.innerHTML = `
       <td class="td-muted">${t.date?.slice(0,10) || '—'}</td>
       <td class="td-ticker">${t.symbol || '—'}</td>
-      <td>${typeBadge}</td>
+      <td>${typeBadge}${asgnBadge}</td>
       <td>${sideBadge}</td>
       <td>${t.qty || '—'}</td>
       <td class="td-accent">$${(+(t.price||0)).toFixed(2)}</td>
-      <td>${t.strike || '—'}</td>
-      <td class="td-muted">${t.expiry || '—'}</td>
+      <td>${displayStrike}</td>
+      <td class="td-muted">${displayExpiry}</td>
       <td class="td-warn">${t.commission ? '-$'+t.commission.toFixed(2) : '—'}</td>
-      <td class="${t.pnl != null ? (t.pnl>=0?'td-pos':'td-neg') : ''}">${t.pnl != null ? (t.pnl>=0?'+':'')+'$'+Math.abs(t.pnl).toFixed(2) : '—'}</td>
+      <td class="${t.pnl != null ? (t.pnl>=0?'td-pos':'td-neg') : 'td-muted'}">${t.pnl != null ? (t.pnl>=0?'+':'')+'$'+Math.abs(t.pnl).toFixed(2) : 'open'}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1649,7 +2279,7 @@ document.getElementById('trade-search')?.addEventListener('input', () => {
 
 /* ═══════════════════════════ CALENDAR ═══════════════════════════ */
 function renderCalendar() {
-  const trades = rawTrades.length ? rawTrades : generateDemoData();
+  const trades = getFilteredTrades();
   const m = calcMetrics(trades);
   const heatmap = document.getElementById('calendar-heatmap');
 
@@ -1720,6 +2350,272 @@ function renderCalendar() {
   }, { plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => '$'+v.toFixed(0) } } } });
 }
 
+function renderReportsTab() {
+  const trades = getFilteredTrades();
+  const m = calcMetrics(trades);
+  const balances = getFilteredBalances().slice().sort((a,b) => String(a.date).localeCompare(String(b.date)));
+  const latestBal = balances.length ? Number(balances[balances.length - 1].balance || 0) : null;
+  const cap = m.openCapital || { invested: 0, tiedUp: 0, netOpenPremium: 0, openLots: 0, openSymbols: 0 };
+  el('rep-trades', String(trades.length));
+  el('rep-closed', String(m.closed.length));
+  el('rep-net', `${m.pnl >= 0 ? '+' : '-'}$${Math.abs(m.pnl).toFixed(2)}`); styleSign('rep-net', m.pnl);
+  el('rep-realized', `${m.realizedPnl >= 0 ? '+' : '-'}$${Math.abs(m.realizedPnl).toFixed(2)}`); styleSign('rep-realized', m.realizedPnl);
+  el('rep-unrealized', `${m.unrealizedProxy >= 0 ? '+' : '-'}$${Math.abs(m.unrealizedProxy).toFixed(2)}`); styleSign('rep-unrealized', m.unrealizedProxy);
+  el('rep-pf', m.pf === Infinity ? '∞' : m.pf.toFixed(2));
+  el('rep-exp', `${m.exp >= 0 ? '+' : '-'}$${Math.abs(m.exp).toFixed(2)}`); styleSign('rep-exp', m.exp);
+  el('rep-cash', latestBal != null ? `$${latestBal.toFixed(2)}` : '—');
+  el('rep-invested', `$${cap.invested.toFixed(2)}`);
+  el('rep-tied', `$${cap.tiedUp.toFixed(2)}`);
+  el('rep-open-premium', `${cap.netOpenPremium >= 0 ? '+' : '-'}$${Math.abs(cap.netOpenPremium).toFixed(2)}`); styleSign('rep-open-premium', cap.netOpenPremium);
+  el('rep-open-positions', `${cap.openLots} lots / ${cap.openSymbols} symbols`);
+
+  const tickerBody = document.getElementById('rep-ticker-tbody');
+  const monthlyBody = document.getElementById('rep-monthly-tbody');
+  if (!tickerBody || !monthlyBody) return;
+
+  tickerBody.innerHTML = '';
+  const tickerRows = Object.entries(m.byTicker).map(([sym, data]) => {
+    const pnl = data.trades.reduce((s,v)=>s+v,0);
+    const wins = data.trades.filter(v => v > 0).length;
+    const wr = data.trades.length ? wins / data.trades.length : 0;
+    return { sym, trades: data.trades.length, wr, pnl, fees: data.comm, net: pnl - data.comm };
+  }).sort((a,b) => b.net - a.net);
+  tickerRows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="td-ticker">${r.sym}</td><td>${r.trades}</td><td class="${r.wr>=0.5?'td-pos':'td-neg'}">${(r.wr*100).toFixed(1)}%</td><td class="${r.pnl>=0?'td-pos':'td-neg'}">${r.pnl>=0?'+':'-'}$${Math.abs(r.pnl).toFixed(2)}</td><td class="td-warn">-$${r.fees.toFixed(2)}</td><td class="${r.net>=0?'td-pos':'td-neg'}">${r.net>=0?'+':'-'}$${Math.abs(r.net).toFixed(2)}</td>`;
+    tickerBody.appendChild(tr);
+  });
+  if (!tickerRows.length) tickerBody.innerHTML = '<tr class="empty-row"><td colspan="6">No data in selected filters</td></tr>';
+
+  const monthly = {};
+  m.closed.forEach(t => {
+    const k = String(t.date || '').slice(0,7) || '0000-00';
+    if (!monthly[k]) monthly[k] = { pnl: 0, wins: 0, losses: 0, trades: 0 };
+    monthly[k].pnl += t.pnl;
+    monthly[k].trades += 1;
+    if (t.pnl > 0) monthly[k].wins += 1; else monthly[k].losses += 1;
+  });
+  const monthKeys = Object.keys(monthly).sort();
+  monthlyBody.innerHTML = '';
+  monthKeys.forEach(k => {
+    const row = monthly[k];
+    const wr = row.trades ? row.wins / row.trades : 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${k}</td><td>${row.trades}</td><td class="${wr>=0.5?'td-pos':'td-neg'}">${(wr*100).toFixed(1)}%</td><td class="${row.pnl>=0?'td-pos':'td-neg'}">${row.pnl>=0?'+':'-'}$${Math.abs(row.pnl).toFixed(2)}</td>`;
+    monthlyBody.appendChild(tr);
+  });
+  if (!monthKeys.length) monthlyBody.innerHTML = '<tr class="empty-row"><td colspan="4">No monthly data in filters</td></tr>';
+
+  mkChart('repMonthlyChart', 'bar', {
+    labels: monthKeys.length ? monthKeys : ['No data'],
+    datasets: [{ data: monthKeys.length ? monthKeys.map(k => monthly[k].pnl) : [0], backgroundColor: monthKeys.length ? monthKeys.map(k => monthly[k].pnl >= 0 ? 'rgba(0,230,118,0.7)' : 'rgba(255,77,109,0.7)') : ['rgba(74,96,112,0.5)'], borderRadius: 4 }]
+  }, { plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } });
+
+  const topTicker = tickerRows.slice(0,10);
+  mkChart('repTickerChart', 'bar', {
+    labels: topTicker.length ? topTicker.map(r => r.sym) : ['No data'],
+    datasets: [{ data: topTicker.length ? topTicker.map(r => r.net) : [0], backgroundColor: topTicker.length ? topTicker.map(r => r.net >= 0 ? 'rgba(0,230,118,0.7)' : 'rgba(255,77,109,0.7)') : ['rgba(74,96,112,0.5)'], borderRadius: 4 }]
+  }, { plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } });
+}
+
+function exportReportCSV() {
+  const trades = getFilteredTrades();
+  const m = calcMetrics(trades);
+  const rows = ['scope,metric,value'];
+  rows.push(`report,total_trades,${trades.length}`);
+  rows.push(`report,closed_trades,${m.closed.length}`);
+  rows.push(`report,net_pnl,${m.pnl.toFixed(2)}`);
+  rows.push(`report,profit_factor,${m.pf === Infinity ? 'Infinity' : m.pf.toFixed(4)}`);
+  rows.push(`report,expectancy,${m.exp.toFixed(2)}`);
+  Object.entries(m.byTicker).forEach(([sym, data]) => {
+    const pnl = data.trades.reduce((s,v)=>s+v,0);
+    rows.push(`ticker:${sym},trades,${data.trades.length}`);
+    rows.push(`ticker:${sym},pnl,${pnl.toFixed(2)}`);
+    rows.push(`ticker:${sym},fees,${data.comm.toFixed(2)}`);
+    rows.push(`ticker:${sym},net,${(pnl - data.comm).toFixed(2)}`);
+  });
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tickeros_report.csv';
+  a.click();
+  toast('Report exported', 'ok');
+}
+
+function exportReportPDF() {
+  const trades = getFilteredTrades();
+  const m = calcMetrics(trades);
+  const symbol = (document.getElementById('filter-symbol')?.value || 'ALL').toUpperCase();
+  const from = document.getElementById('filter-from')?.value || 'Any';
+  const to = document.getElementById('filter-to')?.value || 'Any';
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>TickerOS Report</title>
+  <style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h1{margin:0 0 8px}table{border-collapse:collapse;width:100%;margin-top:10px}th,td{border:1px solid #ddd;padding:8px;font-size:12px;text-align:left}.k{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 14px}.c{border:1px solid #ddd;padding:10px}</style>
+  </head><body>
+  <h1>TickerOS Performance Report</h1>
+  <div>Generated: ${new Date().toLocaleString()}</div>
+  <div>Filters: Symbol ${symbol}, From ${from}, To ${to}</div>
+  <div class="k">
+    <div class="c"><b>Trades</b><br>${trades.length}</div>
+    <div class="c"><b>Closed</b><br>${m.closed.length}</div>
+    <div class="c"><b>Net P&L</b><br>${m.pnl >= 0 ? '+' : '-'}$${Math.abs(m.pnl).toFixed(2)}</div>
+  </div>
+  <table><thead><tr><th>Ticker</th><th>Trades</th><th>P&L</th></tr></thead><tbody>
+  ${Object.entries(m.byTicker).map(([sym, d]) => `<tr><td>${sym}</td><td>${d.trades.length}</td><td>${d.trades.reduce((s,v)=>s+v,0).toFixed(2)}</td></tr>`).join('') || '<tr><td colspan="3">No data</td></tr>'}
+  </tbody></table>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { toast('Popup blocked. Allow popups to export PDF.', 'err'); return; }
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
+function renderDeepDiveTab() {
+  const input = document.getElementById('deepdive-symbol');
+  const q = (input?.value || selectedTicker || document.getElementById('filter-symbol')?.value || '').trim().toUpperCase();
+  const trades = getFilteredTrades();
+  const scoped = q ? trades.filter(t => String(t.symbol || '').toUpperCase() === q) : trades;
+  const m = calcMetrics(scoped);
+  const ws = m.closed.filter(t => t.pnl > 0);
+  const ls = m.closed.filter(t => t.pnl <= 0);
+  const avgW = ws.length ? ws.reduce((s,t)=>s+t.pnl,0) / ws.length : 0;
+  const avgL = ls.length ? Math.abs(ls.reduce((s,t)=>s+t.pnl,0) / ls.length) : 0;
+
+  el('dd-trades', String(scoped.length));
+  el('dd-net', `${m.pnl >= 0 ? '+' : '-'}$${Math.abs(m.pnl).toFixed(2)}`); styleSign('dd-net', m.pnl);
+  el('dd-wr', `${(m.wr * 100).toFixed(1)}%`); styleSign('dd-wr', m.wr - 0.5);
+  el('dd-avg', `$${avgW.toFixed(2)} / -$${avgL.toFixed(2)}`);
+  el('dd-fees', `$${m.comm.toFixed(2)}`);
+
+  const days = Object.keys(m.byDate).sort();
+  let run = 0;
+  const eq = days.map(d => (run += m.byDate[d], +run.toFixed(2)));
+  mkChart('ddEquityChart', 'line', {
+    labels: days.length ? days : ['No data'],
+    datasets: [{ data: days.length ? eq : [0], borderColor: ACCENT, borderWidth: 2, tension: 0.3, pointRadius: 0 }]
+  }, { plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } });
+
+  const monthly = {};
+  m.closed.forEach(t => { const k = String(t.date || '').slice(0,7); monthly[k] = (monthly[k] || 0) + t.pnl; });
+  const months = Object.keys(monthly).sort();
+  mkChart('ddMonthlyChart', 'bar', {
+    labels: months.length ? months : ['No data'],
+    datasets: [{ data: months.length ? months.map(k => monthly[k]) : [0], backgroundColor: months.length ? months.map(k => monthly[k] >= 0 ? 'rgba(0,230,118,0.7)' : 'rgba(255,77,109,0.7)') : ['rgba(74,96,112,0.5)'], borderRadius: 4 }]
+  }, { plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } });
+
+  const tbody = document.getElementById('dd-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  scoped.slice().sort((a,b) => String(a.date).localeCompare(String(b.date))).reverse().forEach(t => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="td-muted">${String(t.date||'').slice(0,10)}</td><td class="td-ticker">${t.symbol||'—'}</td><td>${t.type||'—'}</td><td>${t.side||'—'}</td><td>${t.qty||'—'}</td><td>$${(+((t.price)||0)).toFixed(2)}</td><td>-$${(+((t.commission)||0)).toFixed(2)}</td><td class="${t.pnl!=null?(t.pnl>=0?'td-pos':'td-neg'):''}">${t.pnl!=null?`${t.pnl>=0?'+':'-'}$${Math.abs(t.pnl).toFixed(2)}`:'—'}</td>`;
+    tbody.appendChild(tr);
+  });
+  if (!scoped.length) tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No matching data for selected ticker/filter</td></tr>';
+}
+
+function renderStrategyTab() {
+  const trades = getFilteredTrades();
+  const m = calcMetrics(trades);
+  const body = document.getElementById('strategy-tbody');
+  if (!body) return;
+
+  const rows = Object.entries(m.byStrategy).map(([name, d]) => {
+    const pnl = d.pnls.reduce((s,v)=>s+v,0);
+    const tradesCount = d.pnls.length;
+    const wr = tradesCount ? d.wins / tradesCount : 0;
+    const grossW = d.pnls.filter(v => v > 0).reduce((s,v)=>s+v,0);
+    const grossL = Math.abs(d.pnls.filter(v => v <= 0).reduce((s,v)=>s+v,0));
+    const pf = grossL > 0 ? grossW / grossL : grossW > 0 ? Infinity : 0;
+    return { name, trades: tradesCount, wr, pnl, fees: d.fees, net: pnl - d.fees, pf };
+  }).sort((a,b) => b.net - a.net);
+
+  el('str-count', String(rows.length));
+  el('str-best', rows[0]?.name || '—');
+  el('str-worst', rows[rows.length - 1]?.name || '—');
+  el('str-best-pf', rows[0] ? (rows[0].pf === Infinity ? '∞' : rows[0].pf.toFixed(2)) : '0.00');
+
+  body.innerHTML = '';
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.name}</td><td>${r.trades}</td><td class="${r.wr>=0.5?'td-pos':'td-neg'}">${(r.wr*100).toFixed(1)}%</td><td class="${r.pnl>=0?'td-pos':'td-neg'}">${r.pnl>=0?'+':'-'}$${Math.abs(r.pnl).toFixed(2)}</td><td class="td-warn">-$${r.fees.toFixed(2)}</td><td class="${r.net>=0?'td-pos':'td-neg'}">${r.net>=0?'+':'-'}$${Math.abs(r.net).toFixed(2)}</td><td>${r.pf===Infinity?'∞':r.pf.toFixed(2)}</td>`;
+    body.appendChild(tr);
+  });
+  if (!rows.length) body.innerHTML = '<tr class="empty-row"><td colspan="7">No strategy data in selected filters</td></tr>';
+
+  mkChart('strategyChart', 'bar', {
+    labels: rows.length ? rows.map(r => r.name) : ['No data'],
+    datasets: [{ data: rows.length ? rows.map(r => r.net) : [0], backgroundColor: rows.length ? rows.map(r => r.net >= 0 ? 'rgba(0,230,118,0.7)' : 'rgba(255,77,109,0.7)') : ['rgba(74,96,112,0.5)'], borderRadius: 4 }]
+  }, { plugins: { legend: { display: false } }, scales: { x: { ticks: { maxRotation: 50 } } } });
+
+  mkChart('strategyWRChart', 'bar', {
+    labels: rows.length ? rows.map(r => r.name) : ['No data'],
+    datasets: [{ data: rows.length ? rows.map(r => +(r.wr * 100).toFixed(2)) : [0], backgroundColor: 'rgba(0,212,255,0.65)', borderRadius: 4 }]
+  }, { plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: v => `${v}%` }, suggestedMax: 100 }, x: { ticks: { maxRotation: 50 } } } });
+}
+
+function renderTaxTab() {
+  const trades = getFilteredTrades();
+  const m = calcMetrics(trades);
+  const stRate = Math.max(0, Number(document.getElementById('tax-st-rate')?.value || 0)) / 100;
+  const ltRate = Math.max(0, Number(document.getElementById('tax-lt-rate')?.value || 0)) / 100;
+
+  const stLots = m.taxLots.filter(x => x.taxClass === 'ST');
+  const ltLots = m.taxLots.filter(x => x.taxClass === 'LT');
+  const stPnl = stLots.reduce((s,x)=>s+x.pnl,0);
+  const ltPnl = ltLots.reduce((s,x)=>s+x.pnl,0);
+  const stDue = Math.max(0, stPnl) * stRate;
+  const ltDue = Math.max(0, ltPnl) * ltRate;
+
+  el('tax-st-pnl', `${stPnl>=0?'+':'-'}$${Math.abs(stPnl).toFixed(2)}`); styleSign('tax-st-pnl', stPnl);
+  el('tax-lt-pnl', `${ltPnl>=0?'+':'-'}$${Math.abs(ltPnl).toFixed(2)}`); styleSign('tax-lt-pnl', ltPnl);
+  el('tax-st-due', `$${stDue.toFixed(2)}`);
+  el('tax-lt-due', `$${ltDue.toFixed(2)}`);
+  el('tax-total-due', `$${(stDue + ltDue).toFixed(2)}`);
+
+  const monthly = {};
+  m.taxLots.forEach(x => {
+    const k = String(x.date || '').slice(0,7);
+    monthly[k] = (monthly[k] || 0) + x.pnl;
+  });
+  const months = Object.keys(monthly).sort();
+  mkChart('taxMonthlyChart', 'bar', {
+    labels: months.length ? months : ['No data'],
+    datasets: [{ data: months.length ? months.map(k => monthly[k]) : [0], backgroundColor: months.length ? months.map(k => monthly[k] >= 0 ? 'rgba(0,230,118,0.7)' : 'rgba(255,77,109,0.7)') : ['rgba(74,96,112,0.5)'], borderRadius: 4 }]
+  }, { plugins: { legend: { display: false } } });
+
+  mkChart('taxMixChart', 'doughnut', {
+    labels: ['Short-Term Lots', 'Long-Term Lots'],
+    datasets: [{ data: [stLots.length, ltLots.length], backgroundColor: ['rgba(255,171,64,0.85)', 'rgba(0,212,255,0.75)'], borderWidth: 0 }]
+  }, { plugins: { legend: { position: 'bottom' } }, cutout: '60%' });
+
+  const tbody = document.getElementById('tax-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  m.taxLots.slice().sort((a,b) => String(a.date).localeCompare(String(b.date))).reverse().forEach(x => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="td-muted">${x.date}</td><td class="td-ticker">${x.symbol}</td><td class="${x.pnl>=0?'td-pos':'td-neg'}">${x.pnl>=0?'+':'-'}$${Math.abs(x.pnl).toFixed(2)}</td><td>${x.taxClass}</td><td>${x.holdDays||0}</td>`;
+    tbody.appendChild(tr);
+  });
+  if (!m.taxLots.length) tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No taxable lots in selected filters</td></tr>';
+}
+
+function exportTaxCSV() {
+  const trades = getFilteredTrades();
+  const m = calcMetrics(trades);
+  const rows = ['date,symbol,pnl,tax_class,hold_days'];
+  m.taxLots.forEach(x => rows.push(`${x.date},${x.symbol},${x.pnl.toFixed(2)},${x.taxClass},${x.holdDays}`));
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tickeros_tax_lots.csv';
+  a.click();
+  toast('Tax CSV exported', 'ok');
+}
+
 /* ═══════════════════════════ DATA CENTER ═══════════════════════════ */
 const fileInput = document.getElementById('file-input');
 const processBtn = document.getElementById('process-btn');
@@ -1753,9 +2649,402 @@ function handleFiles(files) {
   });
 }
 
+/* ═══ SCHWAB CSV PARSER ═══════════════════════════════════════════ */
+function parseNum(v) { return Number(String(v||'').replace(/[^0-9eE+\-.]/g,'')) || 0; }
+
+function parseDescriptionSchwab(desc) {
+  if (!desc) return null;
+  const r = { qty:1, price:0, symbol:'', side:'', optionType:null, strike:null, expiry:null, isOption:false, mult:1 };
+  const mQty = desc.match(/\b(BOT|BOUGHT|BUY|SOLD|SELL)\b\s*([+-]?\d+(?:\.\d+)?)/i);
+  if (mQty) {
+    const s = mQty[1].toUpperCase();
+    r.side = (s==='SOLD'||s==='SELL') ? 'SELL' : 'BUY';
+    r.qty = Math.abs(parseFloat(mQty[2])) || 1;
+  }
+  const mPrice = desc.match(/@\s*([0-9,]+\.?[0-9]*)/);
+  if (mPrice) r.price = parseNum(mPrice[1]);
+
+  // Prefer explicit action+qty+symbol first for stable extraction.
+  const mActionSym = desc.match(/(?:BOT|BOUGHT|BUY|SOLD|SELL)\s+[+-]?\d+(?:\.\d+)?\s+([A-Z]{1,5})\b/i);
+  if (mActionSym) r.symbol = mActionSym[1].toUpperCase();
+
+  // Fallbacks for richer option descriptions and assignment/expiration rows.
+  if (!normalizeTickerSymbol(r.symbol)) {
+    const mOpt = desc.match(/\b([A-Z]{1,5})\b(?=\s+\d+\s*\(|\s+@|\s+\d{1,2}\s+[A-Z]{3})/);
+    if (mOpt) r.symbol = mOpt[1].toUpperCase();
+  }
+  if (!normalizeTickerSymbol(r.symbol)) {
+    const m100 = desc.match(/\b([A-Z]{1,5})\b(?=\s+100\b)/i);
+    if (m100) r.symbol = m100[1].toUpperCase();
+  }
+  if (!normalizeTickerSymbol(r.symbol)) {
+    const mUpon = desc.match(/\b([A-Z]{1,5})\b(?=\s+UPON\b)/i);
+    if (mUpon) r.symbol = mUpon[1].toUpperCase();
+  }
+
+  r.symbol = normalizeTickerSymbol(r.symbol);
+  const mOpt = desc.match(/\b(CALL|PUT)\b/i);
+  if (mOpt) { r.optionType = mOpt[1].toUpperCase(); r.isOption = true; r.mult = 100; }
+  const mStrike = desc.match(/(\d+\.?\d*)\s+(CALL|PUT)\b/i);
+  if (mStrike) r.strike = parseNum(mStrike[1]);
+  const mExp = desc.match(/(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{2,4})/i);
+  if (mExp) {
+    const mo = {JAN:'01',FEB:'02',MAR:'03',APR:'04',MAY:'05',JUN:'06',JUL:'07',AUG:'08',SEP:'09',OCT:'10',NOV:'11',DEC:'12'};
+    let yr = mExp[3]; if (yr.length===2) yr='20'+yr;
+    r.expiry = `${yr}-${mo[mExp[2].toUpperCase()]}-${mExp[1].padStart(2,'0')}`;
+  }
+  return r;
+}
+
+function isSchWabStatement(headers) {
+  const h = headers.map(x => String(x||'').trim().toUpperCase());
+  return h.includes('TYPE') && h.includes('DESCRIPTION') && (h.includes('AMOUNT') || h.includes('REF #'));
+}
+
+function parseSchWabFile(content) {
+  const lines = content.split(/\r?\n/);
+  // Find the header row (contains DATE and DESCRIPTION)
+  let hi = lines.findIndex(l => /DATE/i.test(l) && /DESCRIPTION/i.test(l));
+  if (hi === -1) hi = 0;
+  const trimmed = lines.slice(hi).join('\n');
+  const parsed = Papa.parse(trimmed, { header: true, skipEmptyLines: true });
+  const rows = parsed.data || [];
+
+  const trades = [];
+  const balances = [];
+  rows.forEach(row => {
+    const type = String(row['TYPE'] || row['Type'] || '').trim().toUpperCase();
+    const date = String(row['DATE'] || row['Date'] || '').trim();
+    const desc = String(row['DESCRIPTION'] || row['Description'] || '').trim();
+    if (!date || !desc || /^DATE$/i.test(date) || /^DESCRIPTION$/i.test(desc) || /^TYPE$/i.test(desc)) return;
+
+    // Date: convert M/D/YY -> YYYY-MM-DD
+    let isoDate = date;
+    const dm = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+    if (dm) { let y=dm[3]; if(y.length===2) y='20'+y; isoDate=`${y}-${dm[1].padStart(2,'0')}-${dm[2].padStart(2,'0')}`; }
+
+    // Capture account balance history from BAL rows
+    if (type === 'BAL') {
+      const bal = parseNum(row['BALANCE'] || row['Balance'] || 0);
+      if (Number.isFinite(bal) && bal !== 0) balances.push({ date: isoDate, balance: +bal.toFixed(2) });
+      return;
+    }
+
+    if (type !== 'TRD' && type !== 'EXP') return; // only actual trade rows
+    // AMOUNT is already the true dollar value Schwab books (options already ×100)
+    const amount = parseNum(row['AMOUNT'] || row['Amount'] || 0);
+    const comm = Math.abs(parseNum(row['Commissions & Fees'] || row['Commission'] || 0))
+               + Math.abs(parseNum(row['Misc Fees'] || 0));
+
+    const p = parseDescriptionSchwab(desc);
+    if (!p || !p.symbol) return;
+
+    // Price: use @-parsed price first, fallback to AMOUNT / (qty × mult)
+    let price = p.price;
+    if (!price && p.qty > 0) price = Math.abs(amount) / (p.qty * (p.mult||1));
+
+    // pnl = AMOUNT - commission (Schwab AMOUNT is already the correct $/trade impact)
+    // Positive AMOUNT = credit (sell-to-open), Negative = debit (buy-to-close or stock buy)
+    // This is correct for expiry-based option income AND for buy/sell pairs.
+    const pnl = +(amount - comm).toFixed(2);
+
+    trades.push({
+      date: isoDate,
+      symbol: p.symbol,
+      type: p.isOption ? (p.optionType||'CALL') : 'STOCK',
+      rawSymbol: p.symbol + (p.isOption ? `_${p.expiry}_${p.strike}_${p.optionType}` : ''),
+      side: p.side,
+      qty: p.qty,
+      price: +price.toFixed(4),
+      commission: +comm.toFixed(2),
+      strike: p.strike,
+      expiry: p.expiry,
+      mult: p.mult||1,
+      pnl,
+    });
+  });
+  return { trades, balances };
+}
+
+/* ═══ SCHWAB ACCOUNT STATEMENT PARSER (Date/Action/Symbol/Description/Qty/Price/Fees & Comm/Amount) ═══ */
+function isSchwabAccountStmt(headers) {
+  const h = headers.map(x => String(x||'').trim().toLowerCase());
+  return h.includes('action') && h.some(x => x.includes('fees'));
+}
+
+function parseSchwabAccountStmt(content) {
+  // Find header row containing Date + Action + Symbol
+  const lines = content.split(/\r?\n/);
+  let hi = lines.findIndex(l => /\bDate\b/i.test(l) && /\bAction\b/i.test(l) && /\bSymbol\b/i.test(l));
+  if (hi === -1) hi = 0;
+  const trimmed = lines.slice(hi).join('\n');
+  const parsed = Papa.parse(trimmed, { header: true, skipEmptyLines: true });
+  const rows = parsed.data || [];
+
+  // Include assignment/exercise/expired so we can track position lifecycle
+  const INCLUDE = new Set([
+    'buy', 'sell',
+    'buy to open', 'sell to open', 'buy to close', 'sell to close',
+    'assigned', 'exercise', 'exercised', 'expired',
+  ]);
+
+  // ── Pass 1: parse all relevant rows into raw events ──────────────
+  const events = [];
+  rows.forEach(row => {
+    const action = String(row['Action'] || '').trim();
+    const al = action.toLowerCase();
+    if (!al || !INCLUDE.has(al)) return;
+
+    const rawDate = String(row['Date'] || '').trim();
+    const dm = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (!dm) return;
+    const isoDate = `${dm[3]}-${dm[1].padStart(2,'0')}-${dm[2].padStart(2,'0')}`;
+
+    const rawSym = String(row['Symbol'] || '').trim();
+    if (!rawSym) return;
+
+    let symbol = rawSym, tradeType = 'STOCK', strike = null, expiry = null;
+    const optM = rawSym.match(/^([A-Z0-9]+)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+([\d.]+)\s+([CP])$/i);
+    if (optM) {
+      symbol = optM[1].toUpperCase();
+      const [, em, ed, ey] = optM[2].match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      expiry = `${ey}-${em.padStart(2,'0')}-${ed.padStart(2,'0')}`;
+      strike = parseFloat(optM[3]);
+      tradeType = optM[4].toUpperCase() === 'P' ? 'PUT' : 'CALL';
+    }
+
+    const side = al.startsWith('buy') ? 'BUY' : al.startsWith('sell') ? 'SELL' : null;
+    const qty = Math.abs(parseNum(row['Quantity'] || 0)) || 1;
+    const price = Math.abs(parseNum(String(row['Price'] || '').replace(/[$,]/g, '')));
+    const feesKey = Object.keys(row).find(k => /fees/i.test(k)) || '';
+    const comm = Math.abs(parseNum(String(row[feesKey] || '').replace(/[$,]/g, '')));
+    const amount = parseNum(String(row['Amount'] || '').replace(/[$,]/g, ''));
+
+    events.push({ action, al, isoDate, rawSym, symbol, tradeType, strike, expiry, side, qty, price, comm, amount });
+  });
+
+  // Schwab CSVs are newest-first — sort ascending so position tracking works
+  events.sort((a, b) => a.isoDate.localeCompare(b.isoDate));
+
+  // ── Pass 2: build trades with position tracking ───────────────────
+  // positionMap: optionRawSymbol → [{ qty, side, groupId, open, tradeRef }]
+  const positionMap = {};
+  const trades = [];
+  let gid = 0;
+  const nextGid = () => `g${++gid}`;
+
+  events.forEach(ev => {
+    const { action, al, isoDate, rawSym, symbol, tradeType, strike, expiry, side, qty, price, comm, amount } = ev;
+    const optKey = tradeType !== 'STOCK' ? `${symbol}_${expiry}_${strike}_${tradeType}` : null;
+
+    // ── Expired: option closed at $0, no cash impact ────────────────
+    if (al === 'expired') {
+      if (optKey && positionMap[optKey]) {
+        const pos = positionMap[optKey].find(p => p.open);
+        if (pos) pos.open = false;
+      }
+      return; // $0 cash flow — no trade row needed
+    }
+
+    // ── Assigned / Exercised: option closed, stock position opens ───
+    // Works for BOTH on-expiry AND early assignment — matching is by
+    // option symbol key, never by date comparison.
+    if (al === 'assigned' || al === 'exercise' || al === 'exercised') {
+      let matchedPos = null;
+      if (optKey && positionMap[optKey]) {
+        matchedPos = positionMap[optKey].find(p => p.open);
+        if (matchedPos) matchedPos.open = false;
+      }
+
+      const groupId = matchedPos?.groupId || nextGid();
+
+      // Determine stock direction:
+      //   Short PUT assigned  → BUY stock at strike
+      //   Short CALL assigned → SELL stock at strike
+      //   Long CALL exercised → BUY stock at strike
+      //   Long PUT exercised  → SELL stock at strike
+      // (PUT → BUY; CALL → SELL — same rule applies to both short/long)
+      // Override from Amount sign when available (handles edge cases).
+      let stockSide = tradeType === 'PUT' ? 'BUY' : 'SELL';
+      if (amount !== 0) stockSide = amount < 0 ? 'BUY' : 'SELL';
+
+      const stockQty = qty * 100;
+      const stockPrice = strike || price;
+
+      trades.push({
+        date: isoDate,
+        symbol,
+        type: 'STOCK',
+        rawSymbol: symbol,
+        side: stockSide,
+        qty: stockQty,
+        price: stockPrice,
+        commission: +comm.toFixed(2),
+        strike: null,
+        expiry: null,
+        mult: 1,
+        pnl: null,           // open position — stock FIFO will realize P&L on the matching sell
+        groupId,
+        fromAssignment: true,
+        assignedFromOption: optKey || rawSym,   // e.g. "TSLA_2026-01-02_450_PUT"
+        action,
+      });
+
+      // Back-link the option open trade so the UI can show the chain
+      if (matchedPos?.tradeRef) matchedPos.tradeRef.assignedGroupId = groupId;
+      return;
+    }
+
+    // ── Regular open/close trades ────────────────────────────────────
+    const groupId = nextGid();
+    const isStockBuy = tradeType === 'STOCK' && side === 'BUY';
+
+    const tradeObj = {
+      date: isoDate,
+      symbol,
+      type: tradeType,
+      rawSymbol: optKey || symbol,
+      side,
+      qty,
+      price: +price.toFixed(4),
+      commission: +comm.toFixed(2),
+      strike,
+      expiry,
+      mult: tradeType !== 'STOCK' ? 100 : 1,
+      // Stock buys: pnl = null (open position, FIFO will close it)
+      // Stock sells: pnl = null initially; fifoMatchStocks fills it in
+      // Options:     pnl = amount (cash-flow per leg — correct for options)
+      pnl: tradeType === 'STOCK' ? null : +amount.toFixed(2),
+      groupId,
+      action,
+    };
+    trades.push(tradeObj);
+
+    // Track open option positions for future assignment matching
+    if (optKey) {
+      if (!positionMap[optKey]) positionMap[optKey] = [];
+      if (al === 'sell to open' || al === 'buy to open') {
+        positionMap[optKey].push({ side, qty, groupId, open: true, tradeRef: tradeObj });
+      } else if (al === 'buy to close' || al === 'sell to close') {
+        const existing = positionMap[optKey]?.find(p => p.open);
+        if (existing) { existing.open = false; tradeObj.groupId = existing.groupId; }
+      }
+    }
+  });
+
+  return { trades, balances: [] };
+}
+/* ═══ END SCHWAB ACCOUNT STATEMENT PARSER ══════════════════════════ */
+
+// Stock FIFO: matches SELL trades against the earliest BUY lots per symbol.
+// Handles both directly-purchased stock and assignment-generated stock (early
+// or on-expiry — the positionMap above already closed the option regardless).
+function fifoMatchStocks(trades) {
+  const openBuys = {}; // symbol → [{ qty, price }] FIFO queue
+  const sorted = [...trades].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+  sorted.forEach(t => {
+    if (t.type !== 'STOCK') return;
+
+    if (t.side === 'BUY') {
+      if (!openBuys[t.symbol]) openBuys[t.symbol] = [];
+      openBuys[t.symbol].push({ qty: t.qty, price: t.price });
+      // pnl stays null (open position)
+
+    } else if (t.side === 'SELL') {
+      const queue = openBuys[t.symbol] || [];
+      let remQty = t.qty;
+      let totalCost = 0;
+
+      while (remQty > 0 && queue.length > 0) {
+        const lot = queue[0];
+        const matched = Math.min(remQty, lot.qty);
+        totalCost += matched * lot.price;
+        lot.qty -= matched;
+        remQty -= matched;
+        if (lot.qty <= 0) queue.shift();
+      }
+
+      const matchedQty = t.qty - remQty;
+      if (matchedQty > 0) {
+        const proceeds = matchedQty * t.price;
+        t.pnl = +(proceeds - totalCost - t.commission).toFixed(2);
+      }
+      // Partial or no match: pnl stays null (missing buy data — needs older CSV)
+    }
+  });
+
+  return trades;
+}
+
+function fifoMatchTrades(trades) {
+  // FIFO P&L: group by rawSymbol, match closes against opens
+  const queues = {};
+  const result = [];
+  // Sort by date first
+  [...trades].sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(t => {
+    const sym = t.rawSymbol;
+    if (!queues[sym]) queues[sym] = [];
+    const q = queues[sym];
+    const mult = t.mult || (t.type !== 'STOCK' ? 100 : 1);
+    let rem = t.qty;
+    let closedPnl = 0, didClose = false;
+
+    if (t.side === 'SELL') {
+      // Close existing longs (buy-to-open → sell-to-close)
+      while (rem > 0 && q.length && q[0].side === 'BUY') {
+        const lot = q[0], take = Math.min(lot.qty, rem);
+        closedPnl += take * (t.price - lot.price) * (lot.mult||mult);
+        lot.qty -= take; rem -= take;
+        if (lot.qty < 0.0001) q.shift();
+        didClose = true;
+      }
+      if (rem > 0.0001) q.push({ side:'SELL', price:t.price, qty:rem, mult });
+    } else if (t.side === 'BUY') {
+      // Close existing shorts (sell-to-open → buy-to-close)
+      while (rem > 0 && q.length && q[0].side === 'SELL') {
+        const lot = q[0], take = Math.min(lot.qty, rem);
+        closedPnl += take * (lot.price - t.price) * (lot.mult||mult);
+        lot.qty -= take; rem -= take;
+        if (lot.qty < 0.0001) q.shift();
+        didClose = true;
+      }
+      if (rem > 0.0001) q.push({ side:'BUY', price:t.price, qty:rem, mult });
+    }
+
+    const out = { ...t };
+    if (didClose) out.pnl = +(closedPnl - t.commission).toFixed(2);
+    result.push(out);
+  });
+  return result;
+}
+/* ═══ END SCHWAB PARSER ═════════════════════════════════════════── */
+
 function autoDetectMapping(csv) {
-  const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true, preview: 1 });
+  // Check new Schwab account statement format first (Date/Action/Symbol/Qty/Price/Fees & Comm/Amount)
+  const quickParsed = Papa.parse(csv, { header: true, skipEmptyLines: true, preview: 1 });
+  const quickHeaders = quickParsed.meta.fields || [];
+  if (isSchwabAccountStmt(quickHeaders)) {
+    logProcess('🏦 Schwab account statement detected — using built-in parser', 'ok');
+    const mapSec = document.getElementById('mapping-section');
+    if (mapSec) mapSec.innerHTML = `<p style="color:var(--pos);font-weight:600;margin:0;">✅ Schwab account statement detected — column mapping not required. Click <strong>Process</strong>.</p>`;
+    return;
+  }
+
+  // Check old Schwab thinkorswim format (TYPE/DESCRIPTION columns)
+  const lines = csv.split(/\r?\n/);
+  const hi = lines.findIndex(l => /DATE/i.test(l) && /DESCRIPTION/i.test(l));
+  const trimmed = lines.slice(hi >= 0 ? hi : 0).join('\n');
+  const parsed = Papa.parse(trimmed, { header: true, skipEmptyLines: true, preview: 1 });
   const headers = parsed.meta.fields || [];
+
+  if (isSchWabStatement(headers)) {
+    logProcess('🏦 Schwab thinkorswim statement detected — using built-in parser', 'ok');
+    const mapSec = document.getElementById('mapping-section');
+    if (mapSec) mapSec.innerHTML = `<p style="color:var(--pos);font-weight:600;margin:0;">✅ Schwab format detected — column mapping not required. Click <strong>Process</strong>.</p>`;
+    return;
+  }
+
   const guess = field => headers.find(h => h.toLowerCase().includes(field.toLowerCase())) || '';
   document.getElementById('map-date').value = guess('date') || guess('time') || guess('exec');
   document.getElementById('map-symbol').value = guess('symbol') || guess('instrument') || guess('ticker');
@@ -1772,86 +3061,153 @@ document.getElementById('apply-btn')?.addEventListener('click', processData);
 function processData() {
   if (!parsedFiles.length) { toast('No files loaded', 'err'); return; }
   logProcess('⚡ Processing...', 'info');
-  const dateCol = document.getElementById('map-date').value;
-  const symCol = document.getElementById('map-symbol').value;
-  const qtyCol = document.getElementById('map-qty').value;
-  const priceCol = document.getElementById('map-price').value;
-  const sideCol = document.getElementById('map-side').value;
-  const commCol = document.getElementById('map-comm').value;
-  const skipDupes = document.getElementById('skip-dupes').checked;
+  const skipDupes = document.getElementById('skip-dupes') && document.getElementById('skip-dupes').checked;
 
-  let all = [], skipped = 0;
-  parsedFiles.forEach(f => {
-    const parsed = Papa.parse(f.content, { header: true, skipEmptyLines: true, dynamicTyping: true });
-    parsed.data.forEach(row => {
-      const sym = String(row[symCol] || '').trim().toUpperCase();
-      if (!sym) return;
-      const type = sym.includes(' P') || sym.includes('PUT') ? 'PUT' : sym.includes(' C') || sym.includes('CALL') ? 'CALL' : 'STOCK';
-      const t = {
-        date: String(row[dateCol] || '').trim(),
-        symbol: sym.split(' ')[0] || sym,
-        type, rawSymbol: sym,
-        side: String(row[sideCol] || '').trim().toUpperCase(),
-        qty: Math.abs(parseFloat(row[qtyCol]) || 0),
-        price: Math.abs(parseFloat(String(row[priceCol] || '').replace(/[$,()]/g,'')) || 0),
-        commission: Math.abs(parseFloat(String(row[commCol] || '').replace(/[$,()]/g,'')) || 0),
-        pnl: null,
-      };
-      all.push(t);
+  // Detect format from first file
+  const firstContent = parsedFiles[0].content;
+
+  // Check new Schwab account statement format first
+  const quickSniff = Papa.parse(firstContent, { header: true, skipEmptyLines: true, preview: 1 });
+  const isNewSchwab = isSchwabAccountStmt(quickSniff.meta.fields || []);
+
+  // Check old Schwab thinkorswim format
+  const firstLines = firstContent.split(/\r?\n/);
+  const hi = firstLines.findIndex(l => /DATE/i.test(l) && /DESCRIPTION/i.test(l));
+  const trimmedFirst = firstLines.slice(hi >= 0 ? hi : 0).join('\n');
+  const sniffed = Papa.parse(trimmedFirst, { header: true, skipEmptyLines: true, preview: 1 });
+  const isSchWab = !isNewSchwab && isSchWabStatement(sniffed.meta.fields || []);
+
+  let result = [];
+  let balanceResult = [];
+
+  if (isNewSchwab) {
+    // ── Schwab account statement path (Date/Action/Symbol/Qty/Price/Fees & Comm/Amount)
+    let allRaw = [];
+    parsedFiles.forEach(f => {
+      const r = parseSchwabAccountStmt(f.content);
+      allRaw = allRaw.concat(r.trades || []);
     });
-  });
+    const seen = new Set();
+    allRaw = allRaw.filter(t => {
+      const k = `${t.date}|${t.rawSymbol}|${t.side}|${t.qty}|${t.price}`;
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    });
+    // FIFO-match stock positions (direct buys, assignment-generated buys → sells)
+    fifoMatchStocks(allRaw);
 
-  // Attempt P&L pairing (SELL then BUY = profit)
-  // Group by symbol, match SELL → BUY pairs
-  const byRaw = {};
-  all.forEach(t => { (byRaw[t.rawSymbol] = byRaw[t.rawSymbol] || []).push(t); });
-  const result = [];
-  Object.values(byRaw).forEach(group => {
-    const sells = group.filter(t => t.side === 'SELL' || t.side === 'S');
-    const buys = group.filter(t => t.side === 'BUY' || t.side === 'B');
-    if (sells.length && buys.length) {
-      sells.forEach(sell => {
-        const buyIdx = buys.findIndex(b => !b._used);
-        if (buyIdx >= 0) {
-          buys[buyIdx]._used = true;
-          const pnl = ((sell.price - buys[buyIdx].price) * sell.qty * (sell.type !== 'STOCK' ? 100 : 1)) - sell.commission - buys[buyIdx].commission;
-          result.push({ ...sell, pnl: +pnl.toFixed(2) });
-        } else { result.push(sell); }
+    const assigned = allRaw.filter(t => t.fromAssignment);
+    result = allRaw;
+    const openStocks = allRaw.filter(t => t.type === 'STOCK' && t.pnl === null && !t.fromAssignment);
+    logProcess(`📊 Schwab account statement: ${result.length} trades parsed`, 'ok');
+    if (assigned.length) logProcess(`🔗 ${assigned.length} assignment/exercise event(s) detected — synthetic stock position(s) created`, 'ok');
+    if (openStocks.length) logProcess(`📂 ${openStocks.length} open stock position(s) (upload older CSV to compute cost basis)`, 'info');
+
+  } else if (isSchWab) {
+    // ── Schwab thinkorswim path: parse DESCRIPTION, pnl = AMOUNT - commission per trade
+    let allRaw = [];
+    let allBalances = [];
+    parsedFiles.forEach(f => {
+      const parsedSchwab = parseSchWabFile(f.content);
+      allRaw = allRaw.concat(parsedSchwab.trades || []);
+      allBalances = allBalances.concat(parsedSchwab.balances || []);
+    });
+    // Dedupe by date+symbol+side+qty+price fingerprint (prevents double-upload)
+    const seen = new Set();
+    allRaw = allRaw.filter(t => {
+      const k = `${t.date}|${t.rawSymbol}|${t.side}|${t.qty}|${t.price}`;
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    });
+    result = allRaw;
+    const byDate = new Map();
+    allBalances.forEach(b => {
+      const d = String(b.date || '').slice(0, 10);
+      if (!d) return;
+      byDate.set(d, { date: d, balance: Number(b.balance || 0) });
+    });
+    balanceResult = Array.from(byDate.values()).sort((a,b) => String(a.date).localeCompare(String(b.date)));
+    logProcess(`📊 Schwab: parsed ${result.length} trades (${result.filter(t=>t.pnl!=null).length} with P&L)`, 'ok');
+    if (balanceResult.length) logProcess(`💰 Captured ${balanceResult.length} account balance snapshots`, 'ok');
+
+  } else {
+    // ── Generic CSV path (thinkorswim, etc.)
+    const dateCol = document.getElementById('map-date').value;
+    const symCol  = document.getElementById('map-symbol').value;
+    const qtyCol  = document.getElementById('map-qty').value;
+    const priceCol = document.getElementById('map-price').value;
+    const sideCol = document.getElementById('map-side').value;
+    const commCol = document.getElementById('map-comm').value;
+
+    let all = [];
+    parsedFiles.forEach(f => {
+      const parsed = Papa.parse(f.content, { header: true, skipEmptyLines: true, dynamicTyping: true });
+      parsed.data.forEach(row => {
+        const sym = String(row[symCol] || '').trim().toUpperCase();
+        if (!sym) return;
+        const type = sym.includes(' P') || sym.includes('PUT') ? 'PUT' : sym.includes(' C') || sym.includes('CALL') ? 'CALL' : 'STOCK';
+        all.push({
+          date: String(row[dateCol] || '').trim(),
+          symbol: sym.split(' ')[0] || sym, type, rawSymbol: sym,
+          side: String(row[sideCol] || '').trim().toUpperCase(),
+          qty: Math.abs(parseFloat(row[qtyCol]) || 0),
+          price: Math.abs(parseFloat(String(row[priceCol] || '').replace(/[$,()]/g,'')) || 0),
+          commission: Math.abs(parseFloat(String(row[commCol] || '').replace(/[$,()]/g,'')) || 0),
+          pnl: null,
+        });
       });
-      buys.filter(b => !b._used).forEach(b => result.push(b));
-    } else {
-      group.forEach(t => result.push(t));
-    }
-  });
+    });
+    result = fifoMatchTrades(all);
+    logProcess(`📊 Generic: parsed ${result.length} trades (${result.filter(t=>t.pnl!=null).length} closed)`, 'ok');
+  }
 
+  let skipped = 0;
   let added = result.length;
   if (skipDupes) {
-    const existing = new Set(rawTrades.map(t => JSON.stringify([t.date, t.rawSymbol, t.qty, t.side])));
+    const existing = new Set(rawTrades.map(t => `${t.date}|${t.rawSymbol}|${t.qty}|${t.side}`));
     const before = added;
-    const newOnes = result.filter(t => !existing.has(JSON.stringify([t.date, t.rawSymbol, t.qty, t.side])));
+    const newOnes = result.filter(t => !existing.has(`${t.date}|${t.rawSymbol}|${t.qty}|${t.side}`));
     skipped = before - newOnes.length;
-    rawTrades = [...rawTrades, ...newOnes];
+    rawTrades = sanitizeStoredTrades([...rawTrades, ...newOnes]);
   } else {
-    rawTrades = [...rawTrades, ...result];
+    rawTrades = sanitizeStoredTrades(result);
+  }
+
+  if (balanceResult.length) {
+    if (skipDupes) {
+      const byDate = new Map(rawBalances.map(b => [String(b.date || '').slice(0,10), { date: String(b.date || '').slice(0,10), balance: Number(b.balance || 0) }]));
+      balanceResult.forEach(b => byDate.set(String(b.date || '').slice(0,10), { date: String(b.date || '').slice(0,10), balance: Number(b.balance || 0) }));
+      rawBalances = Array.from(byDate.values()).sort((a,b) => String(a.date).localeCompare(String(b.date)));
+    } else {
+      rawBalances = balanceResult;
+    }
+  } else if (!skipDupes && !isSchWab) {
+    rawBalances = [];
   }
 
   localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
+  localStorage.setItem('tickeros_balances', JSON.stringify(rawBalances));
   clearBtn.disabled = false;
   logProcess(`✅ Imported ${added - skipped} trades${skipped ? ` (${skipped} skipped)` : ''}`, 'ok');
   logProcess(`📊 Total stored: ${rawTrades.length} trades`, 'info');
+  if (rawBalances.length) logProcess(`💰 Total stored: ${rawBalances.length} balance snapshots`, 'info');
   toast('Data imported! Refreshing dashboard...', 'ok');
+  saveToServer();
   setTimeout(() => { renderDashboard(); showTab('dashboard'); }, 800);
 }
 
 clearBtn.addEventListener('click', () => {
   if (!confirm('Clear all stored trade data?')) return;
   rawTrades = [];
+  rawBalances = [];
   localStorage.removeItem('tickeros_trades');
+  localStorage.removeItem('tickeros_balances');
   clearBtn.disabled = true;
   processBtn.disabled = true;
   logProcess('🗑️ Data cleared', 'warn');
   renderDashboard();
   toast('All data cleared', 'info');
+  saveToServer();
 });
 
 function logProcess(msg, type = '') {
@@ -1874,7 +3230,7 @@ async function sendAI() {
   if (!msg) return;
   input.value = '';
 
-  const trades = rawTrades.length ? rawTrades : generateDemoData();
+  const trades = rawTrades;
   const m = calcMetrics(trades);
 
   addBubble(msg, 'user');
@@ -1937,7 +3293,7 @@ function toast(msg, type = 'info') {
 }
 
 function exportCSV() {
-  const trades = rawTrades.length ? rawTrades : generateDemoData();
+  const trades = getFilteredTrades();
   const header = 'date,symbol,type,side,qty,price,pnl,commission\n';
   const rows = trades.map(t => `${t.date},${t.symbol},${t.type},${t.side},${t.qty},${t.price},${t.pnl||''},${t.commission||0}`).join('\n');
   const blob = new Blob([header + rows], { type: 'text/csv' });
@@ -1948,7 +3304,7 @@ function exportCSV() {
 }
 
 function exportData() {
-  const data = { trades: rawTrades, exported: new Date().toISOString() };
+  const data = { trades: rawTrades, balances: rawBalances, exported: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1956,6 +3312,173 @@ function exportData() {
   a.click();
   toast('Data exported!', 'ok');
 }
+
+function importFromJSON() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const trades = Array.isArray(data) ? data : (data.trades || []);
+        const balances = Array.isArray(data?.balances) ? data.balances : [];
+        if (!trades.length) { toast('No trades found in file', 'err'); return; }
+        rawTrades = sanitizeStoredTrades(trades);
+        rawBalances = balances;
+        localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
+        localStorage.setItem('tickeros_balances', JSON.stringify(rawBalances));
+        toast(`Restored ${rawTrades.length} trades!`, 'ok');
+        saveToServer();
+        renderDashboard();
+        showTab('dashboard');
+      } catch(err) {
+        toast('Invalid JSON file', 'err');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+/* ═══════════════════════════ GOOGLE DRIVE SYNC ═══════════════════════════ */
+const GDRIVE_CLIENT_ID = 'PASTE_YOUR_OAUTH_CLIENT_ID_HERE';
+const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file';
+const GDRIVE_FILE_NAME = 'tickeros_trades.json';
+let gdriveToken = null;
+let gdriveFileId = null;
+
+function driveStatus(msg, color) {
+  const el = document.getElementById('drive-sync-status');
+  if (el) { el.textContent = 'Drive: ' + msg; el.style.color = color || 'var(--text2)'; }
+}
+
+function gdriveSignIn() {
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GDRIVE_CLIENT_ID,
+    scope: GDRIVE_SCOPES,
+    callback: async (resp) => {
+      if (resp.error) { toast('Google sign-in failed: ' + resp.error, 'err'); return; }
+      gdriveToken = resp.access_token;
+      document.getElementById('gdrive-signin-btn').classList.add('hidden');
+      document.getElementById('gdrive-sync-btn').classList.remove('hidden');
+      document.getElementById('gdrive-load-btn').classList.remove('hidden');
+      document.getElementById('gdrive-signout-btn').classList.remove('hidden');
+      driveStatus('connected', 'var(--pos)');
+      toast('Google Drive connected', 'ok');
+      await loadFromDrive();
+    },
+  });
+  client.requestAccessToken();
+}
+
+function gdriveSignOut() {
+  if (gdriveToken) google.accounts.oauth2.revoke(gdriveToken, () => {});
+  gdriveToken = null;
+  gdriveFileId = null;
+  document.getElementById('gdrive-signin-btn').classList.remove('hidden');
+  document.getElementById('gdrive-sync-btn').classList.add('hidden');
+  document.getElementById('gdrive-load-btn').classList.add('hidden');
+  document.getElementById('gdrive-signout-btn').classList.add('hidden');
+  driveStatus('not connected');
+  toast('Signed out of Google Drive', 'info');
+}
+
+async function gdriveRequest(method, url, body, params) {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  const opts = {
+    method,
+    headers: { Authorization: 'Bearer ' + gdriveToken },
+  };
+  if (body instanceof FormData) { opts.body = body; }
+  else if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const r = await fetch(url + qs, opts);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function gdriveFindFile() {
+  if (gdriveFileId) return gdriveFileId;
+  const res = await gdriveRequest('GET', 'https://www.googleapis.com/drive/v3/files', null, {
+    q: `name='${GDRIVE_FILE_NAME}' and trashed=false`,
+    fields: 'files(id,name)',
+    spaces: 'drive',
+  });
+  gdriveFileId = res.files?.[0]?.id || null;
+  return gdriveFileId;
+}
+
+async function saveToDrive() {
+  if (!gdriveToken) { toast('Sign in to Google Drive first', 'err'); return; }
+  try {
+    driveStatus('saving…', 'var(--warn)');
+    const content = JSON.stringify({ updated_at: new Date().toISOString(), trades: rawTrades, balances: rawBalances });
+    const blob = new Blob([content], { type: 'application/json' });
+    const fileId = await gdriveFindFile();
+    if (fileId) {
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify({ name: GDRIVE_FILE_NAME })], { type: 'application/json' }));
+      form.append('file', blob);
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + gdriveToken },
+        body: form,
+      });
+    } else {
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify({ name: GDRIVE_FILE_NAME, mimeType: 'application/json' })], { type: 'application/json' }));
+      form.append('file', blob);
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + gdriveToken },
+        body: form,
+      });
+      const j = await res.json();
+      gdriveFileId = j.id;
+    }
+    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    driveStatus(`saved ${ts}`, 'var(--pos)');
+    toast(`Saved ${rawTrades.length} trades to Google Drive`, 'ok');
+    logProcess(`💾 Saved ${rawTrades.length} trades to Google Drive`, 'ok');
+  } catch (err) {
+    driveStatus('save failed', 'var(--neg)');
+    toast('Drive save failed: ' + err.message, 'err');
+  }
+}
+
+async function loadFromDrive() {
+  if (!gdriveToken) { toast('Sign in to Google Drive first', 'err'); return; }
+  try {
+    driveStatus('loading…', 'var(--warn)');
+    const fileId = await gdriveFindFile();
+    if (!fileId) { driveStatus('no file yet', 'var(--text2)'); toast('No Drive file found — import a CSV to create one', 'info'); return; }
+    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: { Authorization: 'Bearer ' + gdriveToken },
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    rawTrades = sanitizeStoredTrades(Array.isArray(data.trades) ? data.trades : []);
+    rawBalances = Array.isArray(data.balances) ? data.balances : [];
+    localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
+    localStorage.setItem('tickeros_balances', JSON.stringify(rawBalances));
+    clearBtn.disabled = rawTrades.length === 0;
+    renderDashboard();
+    showTab('dashboard');
+    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    driveStatus(`loaded ${ts}`, 'var(--pos)');
+    toast(`Loaded ${rawTrades.length} trades from Google Drive`, 'ok');
+    logProcess(`📥 Loaded ${rawTrades.length} trades from Google Drive`, 'ok');
+  } catch (err) {
+    driveStatus('load failed', 'var(--neg)');
+    toast('Drive load failed: ' + err.message, 'err');
+  }
+}
+
+// Auto-save to Drive after CSV import and restore
+function saveToServer() { saveToDrive(); }
 
 /* ═══════════════════════════ EQUITY TIME FILTER ═══════════════════════════ */
 document.querySelectorAll('[data-equity]').forEach(btn => {
@@ -1971,6 +3494,30 @@ document.getElementById('ticker-search')?.addEventListener('input', function() {
   const q = this.value.toLowerCase();
   document.querySelectorAll('#ticker-tbody tr').forEach(tr => {
     tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+
+document.getElementById('filter-symbol')?.addEventListener('input', function() {
+  this.value = this.value.toUpperCase().replace(/[^A-Z]/g, '');
+});
+
+['filter-from', 'filter-to', 'filter-symbol'].forEach(id => {
+  document.getElementById(id)?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') applyGlobalFilters();
+  });
+});
+
+document.getElementById('deepdive-symbol')?.addEventListener('input', function() {
+  this.value = this.value.toUpperCase().replace(/[^A-Z]/g, '');
+});
+
+document.getElementById('deepdive-symbol')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') renderDeepDiveTab();
+});
+
+['tax-st-rate', 'tax-lt-rate'].forEach(id => {
+  document.getElementById(id)?.addEventListener('change', () => {
+    if (document.querySelector('.nav-item.active')?.dataset.tab === 'tax') renderTaxTab();
   });
 });
 
