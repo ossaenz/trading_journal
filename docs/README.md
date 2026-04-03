@@ -218,6 +218,35 @@ ollama serve
 ollama pull llama3
 ```
 
+## Schwab OAuth + Server Storage
+
+```bash
+# 1) Install backend deps
+npm install
+
+# 2) Create local env
+cp .env.example .env
+
+# 3) Set values in .env
+# SCHWAB_CLIENT_ID=...
+# SCHWAB_CLIENT_SECRET=...
+# SCHWAB_REDIRECT_URI=https://127.0.0.1:8080/api/auth/schwab/callback
+
+# 4) Start app + API server
+npm start
+```
+
+Data is stored on disk in `data/`:
+- `data/trades.json`: normalized trades used by dashboard
+- `data/schwab_tokens.json`: OAuth tokens (keep private)
+- `data/schwab_raw_transactions.json`: raw Schwab API payload backup
+
+Data Center buttons:
+- `Connect Schwab`: starts OAuth flow
+- `Sync Schwab`: fetches transactions and normalizes trades
+- `Save Server`: stores current in-browser trades to `data/trades.json`
+- `Load Server`: loads `data/trades.json` into dashboard/localStorage
+
 ## Tech Stack
 
 | Layer | Technology |
