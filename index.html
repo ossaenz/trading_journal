@@ -1039,6 +1039,11 @@ tbody td {
               <div class="kpi-val accent" id="kpi-pnl">$0.00</div>
               <div class="kpi-sub" id="kpi-roi">ROI: —</div>
             </div>
+            <div class="kpi" style="border-color:var(--neg);">
+              <div class="kpi-label">After Wash Sales</div>
+              <div class="kpi-val" id="kpi-wash-adj">—</div>
+              <div class="kpi-sub" id="kpi-wash-sub">enter adj below ↓</div>
+            </div>
             <div class="kpi kpi-pos">
               <div class="kpi-label">Win Rate</div>
               <div class="kpi-val" id="kpi-wr">0.0%</div>
@@ -2231,6 +2236,25 @@ function updateWashSaleDisplay() {
   const adjTotal = totalWithIncome - washAdj;
   const fmt = v => (v >= 0 ? '+' : '') + '$' + Math.abs(v).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
 
+  // Helper to update any wash-adj display element
+  const setWashEl = (valId, subId, subText) => {
+    const valEl = document.getElementById(valId);
+    const subEl = document.getElementById(subId);
+    if (!valEl) return;
+    if (washAdj > 0) {
+      valEl.textContent = fmt(adjTotal);
+      valEl.style.color = adjTotal >= 0 ? 'var(--pos)' : 'var(--neg)';
+      if (subEl) subEl.textContent = subText;
+    } else {
+      valEl.textContent = '—';
+      valEl.style.color = 'var(--muted)';
+      if (subEl) subEl.textContent = 'enter adj below ↓';
+    }
+  };
+
+  // Dashboard KPI box
+  setWashEl('kpi-wash-adj', 'kpi-wash-sub', `-$${washAdj.toFixed(2)} wash sales`);
+
   // Stats strip "Adj Net P&L"
   const adjEl = document.getElementById('stat-adj-pnl');
   if (adjEl) {
@@ -2244,19 +2268,7 @@ function updateWashSaleDisplay() {
   }
 
   // P&L tab wash-sale box
-  const pnlWashEl = document.getElementById('pnl-wash-adj');
-  const pnlWashSub = document.getElementById('pnl-wash-sub');
-  if (pnlWashEl) {
-    if (washAdj > 0) {
-      pnlWashEl.textContent = fmt(adjTotal);
-      pnlWashEl.style.color = adjTotal >= 0 ? 'var(--pos)' : 'var(--neg)';
-      if (pnlWashSub) pnlWashSub.textContent = `-$${washAdj.toFixed(2)} wash sales`;
-    } else {
-      pnlWashEl.textContent = '—';
-      pnlWashEl.style.color = 'var(--muted)';
-      if (pnlWashSub) pnlWashSub.textContent = 'enter adj in dashboard';
-    }
-  }
+  setWashEl('pnl-wash-adj', 'pnl-wash-sub', `-$${washAdj.toFixed(2)} wash sales`);
 
   // P&L tab unrealized strip
   const cap = m.openCapital || {};
