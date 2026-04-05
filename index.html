@@ -1090,7 +1090,7 @@ tbody td {
               <span class="stat-val" style="display:flex;align-items:center;gap:4px;">
                 <span style="color:var(--neg);font-size:11px;">-$</span><input id="wash-sale-input" type="number" min="0" step="0.01" placeholder="0.00"
                   style="width:72px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--neg);font-size:12px;font-family:inherit;padding:0 2px;outline:none;"
-                  oninput="updateWashSaleDisplay()">
+                  oninput="localStorage.setItem('tickeros_wash_sale',this.value);updateWashSaleDisplay()">
               </span>
             </div>
             <div class="stat-item"><span class="stat-label">Adj Net P&L</span><span class="stat-val" id="stat-adj-pnl">—</span></div>
@@ -1754,6 +1754,14 @@ let rawIncome = JSON.parse(localStorage.getItem('tickeros_income') || '[]');
 let parsedFiles = [];
 let charts = {};
 let selectedTicker = '';
+
+// Restore saved wash sale adjustment
+(function restoreWashSale() {
+  const saved = localStorage.getItem('tickeros_wash_sale');
+  if (!saved) return;
+  const inp = document.getElementById('wash-sale-input');
+  if (inp) inp.value = saved;
+})();
 
 localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
 
