@@ -1079,6 +1079,16 @@ tbody td {
             <div class="stat-item"><span class="stat-label">Balance Δ</span><span class="stat-val" id="stat-bal-change">$0</span></div>
             <div class="stat-item"><span class="stat-label">This Month</span><span class="stat-val" id="stat-month-pnl">$0</span></div>
             <div class="stat-item"><span class="stat-label">Div Income</span><span class="stat-val pos" id="stat-income">$0</span></div>
+            <div class="stat-item"><span class="stat-label">Unrealized (Open)</span><span class="stat-val accent" id="stat-unrealized">$0</span></div>
+            <div class="stat-item" title="Enter wash sale disallowance from your broker (e.g. Schwab Gain/Loss page)">
+              <span class="stat-label">Wash Sale Adj</span>
+              <span class="stat-val" style="display:flex;align-items:center;gap:4px;">
+                <span style="color:var(--neg);font-size:11px;">-$</span><input id="wash-sale-input" type="number" min="0" step="0.01" placeholder="0.00"
+                  style="width:72px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--neg);font-size:12px;font-family:inherit;padding:0 2px;outline:none;"
+                  oninput="updateWashSaleDisplay()">
+              </span>
+            </div>
+            <div class="stat-item"><span class="stat-label">Adj Net P&L</span><span class="stat-val" id="stat-adj-pnl">—</span></div>
           </div>
 
           <!-- Charts Row 1 -->
@@ -1124,11 +1134,21 @@ tbody td {
 
       <!-- ════════════════════════════════ P&L ANALYSIS ════════════════════════════════ -->
       <section id="tab-pnl" class="tab-section">
-        <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+        <div class="kpi-row" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px;">
           <div class="kpi kpi-accent"><div class="kpi-label">Total Realized</div><div class="kpi-val accent" id="pnl-total">$0</div><div class="kpi-sub">closed trades only</div></div>
           <div class="kpi kpi-pos"><div class="kpi-label">Gross Profit</div><div class="kpi-val pos" id="pnl-gross-w">$0</div><div class="kpi-sub" id="pnl-cnt-w">0 wins</div></div>
           <div class="kpi kpi-neg"><div class="kpi-label">Gross Loss</div><div class="kpi-val neg" id="pnl-gross-l">$0</div><div class="kpi-sub" id="pnl-cnt-l">0 losses</div></div>
           <div class="kpi kpi-gold"><div class="kpi-label">Total w/ Income</div><div class="kpi-val gold" id="pnl-net">$0</div><div class="kpi-sub" id="pnl-fees">options + dividends</div></div>
+          <div class="kpi" style="border-color:var(--neg);"><div class="kpi-label">Wash Sale Adj</div><div class="kpi-val" id="pnl-wash-adj">—</div><div class="kpi-sub" id="pnl-wash-sub">enter adj in dashboard</div></div>
+        </div>
+        <!-- Unrealized open positions strip -->
+        <div class="stats-strip" style="margin-bottom:12px;" id="unrealized-strip">
+          <div class="stat-item"><span class="stat-label">Open Positions</span><span class="stat-val accent" id="unr-lots">0</span></div>
+          <div class="stat-item"><span class="stat-label">Net Premium Held</span><span class="stat-val" id="unr-premium">$0</span></div>
+          <div class="stat-item"><span class="stat-label">Stock Cost Basis</span><span class="stat-val" id="unr-stock">$0</span></div>
+          <div class="stat-item"><span class="stat-label">Short Put Collateral</span><span class="stat-val warn" id="unr-put-col">$0</span></div>
+          <div class="stat-item"><span class="stat-label">Long Option Debit</span><span class="stat-val neg" id="unr-long-debit">$0</span></div>
+          <div class="stat-item"><span class="stat-label">Capital at Risk</span><span class="stat-val neg" id="unr-tied">$0</span></div>
         </div>
 
         <div class="chart-grid chart-grid-2 mb2">
@@ -2141,6 +2161,16 @@ function renderDashboard() {
   const incomeEl = document.getElementById('stat-income');
   if (incomeEl) { incomeEl.textContent = '+$' + totalIncome.toFixed(2); incomeEl.className = 'stat-val pos'; }
 
+  // Unrealized open positions
+  const cap = m.openCapital || {};
+  const netPrem = cap.netOpenPremium || 0;
+  const unrealEl = document.getElementById('stat-unrealized');
+  if (unrealEl) {
+    unrealEl.textContent = (netPrem >= 0 ? '+' : '-') + '$' + Math.abs(netPrem).toFixed(2);
+    unrealEl.className = 'stat-val ' + (netPrem >= 0 ? 'pos' : 'neg');
+  }
+  updateWashSaleDisplay();
+
   // Equity chart
   mkChart('equityChart', 'line', {
     labels: m.equity.map(p => p.x),
@@ -2188,6 +2218,62 @@ function renderDashboard() {
   }, { plugins: { legend: { position: 'bottom', labels: { padding: 14, boxWidth: 10 } } }, cutout: '60%' });
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   Wash-sale adjustment — called on input change + after render
+═══════════════════════════════════════════════════════════════ */
+function updateWashSaleDisplay() {
+  const washInput = document.getElementById('wash-sale-input');
+  const washAdj = washInput ? Math.abs(parseFloat(washInput.value) || 0) : 0;
+  const trades = getFilteredTrades();
+  const m = calcMetrics(trades);
+  const incomeForPnl = getFilteredIncome().reduce((s, inc) => s + Number(inc.amount || 0), 0);
+  const totalWithIncome = m.pnl + incomeForPnl;
+  const adjTotal = totalWithIncome - washAdj;
+  const fmt = v => (v >= 0 ? '+' : '') + '$' + Math.abs(v).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  // Stats strip "Adj Net P&L"
+  const adjEl = document.getElementById('stat-adj-pnl');
+  if (adjEl) {
+    if (washAdj > 0) {
+      adjEl.textContent = fmt(adjTotal);
+      adjEl.className = 'stat-val ' + (adjTotal >= 0 ? 'pos' : 'neg');
+    } else {
+      adjEl.textContent = '—';
+      adjEl.className = 'stat-val';
+    }
+  }
+
+  // P&L tab wash-sale box
+  const pnlWashEl = document.getElementById('pnl-wash-adj');
+  const pnlWashSub = document.getElementById('pnl-wash-sub');
+  if (pnlWashEl) {
+    if (washAdj > 0) {
+      pnlWashEl.textContent = fmt(adjTotal);
+      pnlWashEl.style.color = adjTotal >= 0 ? 'var(--pos)' : 'var(--neg)';
+      if (pnlWashSub) pnlWashSub.textContent = `-$${washAdj.toFixed(2)} wash sales`;
+    } else {
+      pnlWashEl.textContent = '—';
+      pnlWashEl.style.color = 'var(--muted)';
+      if (pnlWashSub) pnlWashSub.textContent = 'enter adj in dashboard';
+    }
+  }
+
+  // P&L tab unrealized strip
+  const cap = m.openCapital || {};
+  const si = id => document.getElementById(id);
+  const fmtAbs = v => '$' + Math.abs(v).toLocaleString('en', {minimumFractionDigits:2,maximumFractionDigits:2});
+  if (si('unr-lots')) si('unr-lots').textContent = cap.openLots || 0;
+  if (si('unr-premium')) {
+    const p = cap.netOpenPremium || 0;
+    si('unr-premium').textContent = (p >= 0 ? '+' : '-') + fmtAbs(p);
+    si('unr-premium').className = 'stat-val ' + (p >= 0 ? 'pos' : 'neg');
+  }
+  if (si('unr-stock')) si('unr-stock').textContent = fmtAbs(cap.openStockCostBasis || 0);
+  if (si('unr-put-col')) si('unr-put-col').textContent = fmtAbs(cap.shortPutCollateral || 0);
+  if (si('unr-long-debit')) si('unr-long-debit').textContent = '-' + fmtAbs(cap.longOptionDebit || 0);
+  if (si('unr-tied')) si('unr-tied').textContent = fmtAbs(cap.tiedUp || 0);
+}
+
 /* ═══════════════════════════ P&L TAB ═══════════════════════════ */
 function renderPnlTab() {
   const trades = getFilteredTrades();
@@ -2203,6 +2289,7 @@ function renderPnlTab() {
   const totalWithIncome = m.pnl + incomeForPnl;
   el('pnl-net', fmt(totalWithIncome)); styleSign('pnl-net', totalWithIncome);
   el('pnl-fees', 'options ' + (m.pnl >= 0 ? '+' : '') + '$' + m.pnl.toFixed(2) + ' + div $' + incomeForPnl.toFixed(2));
+  updateWashSaleDisplay();
 
   // Monthly P&L
   const monthly = {};
