@@ -1078,6 +1078,7 @@ tbody td {
             <div class="stat-item"><span class="stat-label">Account Value</span><span class="stat-val" id="stat-balance">$0</span></div>
             <div class="stat-item"><span class="stat-label">Balance Δ</span><span class="stat-val" id="stat-bal-change">$0</span></div>
             <div class="stat-item"><span class="stat-label">This Month</span><span class="stat-val" id="stat-month-pnl">$0</span></div>
+            <div class="stat-item"><span class="stat-label">Div Income</span><span class="stat-val pos" id="stat-income">$0</span></div>
           </div>
 
           <!-- Charts Row 1 -->
@@ -1127,7 +1128,7 @@ tbody td {
           <div class="kpi kpi-accent"><div class="kpi-label">Total Realized</div><div class="kpi-val accent" id="pnl-total">$0</div><div class="kpi-sub">closed trades only</div></div>
           <div class="kpi kpi-pos"><div class="kpi-label">Gross Profit</div><div class="kpi-val pos" id="pnl-gross-w">$0</div><div class="kpi-sub" id="pnl-cnt-w">0 wins</div></div>
           <div class="kpi kpi-neg"><div class="kpi-label">Gross Loss</div><div class="kpi-val neg" id="pnl-gross-l">$0</div><div class="kpi-sub" id="pnl-cnt-l">0 losses</div></div>
-          <div class="kpi kpi-gold"><div class="kpi-label">Net After Fees</div><div class="kpi-val gold" id="pnl-net">$0</div><div class="kpi-sub" id="pnl-fees">fees: $0</div></div>
+          <div class="kpi kpi-gold"><div class="kpi-label">Total w/ Income</div><div class="kpi-val gold" id="pnl-net">$0</div><div class="kpi-sub" id="pnl-fees">options + dividends</div></div>
         </div>
 
         <div class="chart-grid chart-grid-2 mb2">
@@ -1575,7 +1576,7 @@ tbody td {
               <option value="schwab">Schwab</option>
             </select>
             <label class="flex items-center gap1" style="font-size:12px;color:var(--text2);cursor:pointer;">
-              <input type="checkbox" id="skip-dupes" checked> Append to existing data (skip duplicates)
+              <input type="checkbox" id="skip-dupes"> Append &amp; merge (keep existing data)
             </label>
           </div>
 
@@ -1724,6 +1725,7 @@ function sanitizeStoredTrades(trades) {
 
 let rawTrades = sanitizeStoredTrades(JSON.parse(localStorage.getItem('tickeros_trades') || '[]'));
 let rawBalances = JSON.parse(localStorage.getItem('tickeros_balances') || '[]');
+let rawIncome = JSON.parse(localStorage.getItem('tickeros_income') || '[]');
 let parsedFiles = [];
 let charts = {};
 let selectedTicker = '';
@@ -1748,6 +1750,17 @@ function getFilteredBalances() {
   const to = document.getElementById('filter-to')?.value || '';
   return rawBalances.filter(b => {
     const d = String(b.date || '').slice(0, 10);
+    if (from && d && d < from) return false;
+    if (to && d && d > to) return false;
+    return true;
+  });
+}
+
+function getFilteredIncome() {
+  const from = document.getElementById('filter-from')?.value || '';
+  const to = document.getElementById('filter-to')?.value || '';
+  return rawIncome.filter(inc => {
+    const d = String(inc.date || '').slice(0, 10);
     if (from && d && d < from) return false;
     if (to && d && d > to) return false;
     return true;
@@ -1831,15 +1844,18 @@ function mkChart(id, type, data, opts = {}) {
 
 /* ═══════════════════════════ METRICS CALCULATOR ═══════════════════════════ */
 function calcMetrics(trades) {
-  const closed = trades.filter(t => t.pnl != null);
-  const open = trades.filter(t => t.pnl == null);
+  // isCloseMarker trades are synthetic sentinels used only by buildOpenPositionsList
+  // to close positions on expiry/assignment — exclude them from all P&L metrics
+  const realTrades = trades.filter(t => !t.isCloseMarker);
+  const closed = realTrades.filter(t => t.pnl != null);
+  const open = realTrades.filter(t => t.pnl == null);
   const wins = closed.filter(t => t.pnl > 0);
   const losses = closed.filter(t => t.pnl <= 0);
   const pnl = closed.reduce((s, t) => s + t.pnl, 0);
   const realizedPnl = pnl;
   const grossW = wins.reduce((s, t) => s + t.pnl, 0);
   const grossL = Math.abs(losses.reduce((s, t) => s + t.pnl, 0));
-  const comm = trades.reduce((s, t) => s + (t.commission || 0), 0);
+  const comm = realTrades.reduce((s, t) => s + (t.commission || 0), 0);
   const unrealizedProxy = open.reduce((s, t) => {
     const mult = t.type !== 'STOCK' ? 100 : 1;
     const cashFlow = (t.side === 'SELL' ? 1 : -1) * (Number(t.qty || 0) * Number(t.price || 0) * mult);
@@ -2059,11 +2075,12 @@ function renderDashboard() {
   const balances = getFilteredBalances().slice().sort((a,b) => String(a.date).localeCompare(String(b.date)));
   const m = calcMetrics(trades);
 
-  const hasTrades = rawTrades.length > 0;
-  const hasFiltered = trades.length > 0;
+  const realRawCount = rawTrades.filter(t => !t.isCloseMarker).length;
+  const hasTrades = realRawCount > 0;
+  const hasFiltered = trades.filter(t => !t.isCloseMarker).length > 0;
   document.getElementById('dash-empty')?.classList.toggle('hidden', hasTrades);
   document.getElementById('dash-content')?.classList.toggle('hidden', !hasTrades);
-  document.getElementById('data-status').textContent = hasTrades ? `${rawTrades.length} trades loaded` : 'No data';
+  document.getElementById('data-status').textContent = hasTrades ? `${realRawCount} trades loaded` : 'No data';
   document.getElementById('trade-count-label').textContent = hasTrades ? `${m.closed.length} closed (filtered)` : 'Import CSV in Data Center';
   if (!hasTrades) return;
 
@@ -2107,7 +2124,7 @@ function renderDashboard() {
   el('kpi-worst', worstT ? `Worst: ${worstT[0]}` : '—');
 
   // Stats strip
-  el('stat-trades', trades.length);
+  el('stat-trades', trades.filter(t => !t.isCloseMarker).length);
   el('stat-closed', m.closed.length);
   el('stat-comm', '-$' + m.comm.toFixed(2));
   el('stat-mdd', '-$' + m.maxDD.toFixed(2));
@@ -2118,6 +2135,11 @@ function renderDashboard() {
   const monthPnl = m.dates.filter(d => d.slice(0, 7) === thisMonth).reduce((s, d) => s + m.byDate[d], 0);
   const monthEl = document.getElementById('stat-month-pnl');
   if (monthEl) { monthEl.textContent = (monthPnl >= 0 ? '+' : '') + '$' + Math.abs(monthPnl).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); monthEl.className = 'stat-val ' + (monthPnl >= 0 ? 'pos' : 'neg'); }
+
+  const filteredIncome = getFilteredIncome();
+  const totalIncome = filteredIncome.reduce((s, inc) => s + Number(inc.amount || 0), 0);
+  const incomeEl = document.getElementById('stat-income');
+  if (incomeEl) { incomeEl.textContent = '+$' + totalIncome.toFixed(2); incomeEl.className = 'stat-val pos'; }
 
   // Equity chart
   mkChart('equityChart', 'line', {
@@ -2177,8 +2199,10 @@ function renderPnlTab() {
   el('pnl-cnt-w', m.wins.length + ' winning trades');
   el('pnl-gross-l', '-$' + m.grossL.toFixed(2));
   el('pnl-cnt-l', m.losses.length + ' losing trades');
-  el('pnl-net', fmt(m.pnl - m.comm)); styleSign('pnl-net', m.pnl - m.comm);
-  el('pnl-fees', 'fees: $' + m.comm.toFixed(2));
+  const incomeForPnl = getFilteredIncome().reduce((s, inc) => s + Number(inc.amount || 0), 0);
+  const totalWithIncome = m.pnl + incomeForPnl;
+  el('pnl-net', fmt(totalWithIncome)); styleSign('pnl-net', totalWithIncome);
+  el('pnl-fees', 'options ' + (m.pnl >= 0 ? '+' : '') + '$' + m.pnl.toFixed(2) + ' + div $' + incomeForPnl.toFixed(2));
 
   // Monthly P&L
   const monthly = {};
@@ -2241,7 +2265,7 @@ function renderTickerTab() {
     const ws = data.trades.filter(v => v > 0);
     const ls = data.trades.filter(v => v <= 0);
     const pnl = data.trades.reduce((s,v) => s+v, 0);
-    return { sym, trades: data.trades.length, wr: ws.length/data.trades.length, pnl, net: pnl - data.comm,
+    return { sym, trades: data.trades.length, wr: ws.length/data.trades.length, pnl, net: pnl,
       avgW: ws.length ? ws.reduce((s,v)=>s+v,0)/ws.length : 0,
       avgL: ls.length ? Math.abs(ls.reduce((s,v)=>s+v,0)/ls.length) : 0,
       best: Math.max(...data.trades), worst: Math.min(...data.trades), comm: data.comm };
@@ -2353,6 +2377,7 @@ function renderTradeLog(filter = 'all') {
   const search = (document.getElementById('trade-search')?.value || '').toLowerCase();
 
   let filtered = trades.filter(t => {
+    if (t.isCloseMarker) return false;
     if (filter !== 'all' && t.type !== filter) return false;
     if (search && !JSON.stringify(t).toLowerCase().includes(search)) return false;
     return true;
@@ -2702,7 +2727,7 @@ function renderReportsTab() {
   const balances = getFilteredBalances().slice().sort((a,b) => String(a.date).localeCompare(String(b.date)));
   const latestBal = balances.length ? Number(balances[balances.length - 1].balance || 0) : null;
   const cap = m.openCapital || { invested: 0, tiedUp: 0, netOpenPremium: 0, openLots: 0, openSymbols: 0 };
-  el('rep-trades', String(trades.length));
+  el('rep-trades', String(trades.filter(t => !t.isCloseMarker).length));
   el('rep-closed', String(m.closed.length));
   el('rep-net', `${m.pnl >= 0 ? '+' : '-'}$${Math.abs(m.pnl).toFixed(2)}`); styleSign('rep-net', m.pnl);
   el('rep-realized', `${m.realizedPnl >= 0 ? '+' : '-'}$${Math.abs(m.realizedPnl).toFixed(2)}`); styleSign('rep-realized', m.realizedPnl);
@@ -2724,7 +2749,7 @@ function renderReportsTab() {
     const pnl = data.trades.reduce((s,v)=>s+v,0);
     const wins = data.trades.filter(v => v > 0).length;
     const wr = data.trades.length ? wins / data.trades.length : 0;
-    return { sym, trades: data.trades.length, wr, pnl, fees: data.comm, net: pnl - data.comm };
+    return { sym, trades: data.trades.length, wr, pnl, fees: data.comm, net: pnl };
   }).sort((a,b) => b.net - a.net);
   tickerRows.forEach(r => {
     const tr = document.createElement('tr');
@@ -2768,7 +2793,7 @@ function exportReportCSV() {
   const trades = getFilteredTrades();
   const m = calcMetrics(trades);
   const rows = ['scope,metric,value'];
-  rows.push(`report,total_trades,${trades.length}`);
+  rows.push(`report,total_trades,${trades.filter(t => !t.isCloseMarker).length}`);
   rows.push(`report,closed_trades,${m.closed.length}`);
   rows.push(`report,net_pnl,${m.pnl.toFixed(2)}`);
   rows.push(`report,profit_factor,${m.pf === Infinity ? 'Infinity' : m.pf.toFixed(4)}`);
@@ -2778,7 +2803,7 @@ function exportReportCSV() {
     rows.push(`ticker:${sym},trades,${data.trades.length}`);
     rows.push(`ticker:${sym},pnl,${pnl.toFixed(2)}`);
     rows.push(`ticker:${sym},fees,${data.comm.toFixed(2)}`);
-    rows.push(`ticker:${sym},net,${(pnl - data.comm).toFixed(2)}`);
+    rows.push(`ticker:${sym},net,${pnl.toFixed(2)}`);
   });
   const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
   const a = document.createElement('a');
@@ -2802,7 +2827,7 @@ function exportReportPDF() {
   <div>Generated: ${new Date().toLocaleString()}</div>
   <div>Filters: Symbol ${symbol}, From ${from}, To ${to}</div>
   <div class="k">
-    <div class="c"><b>Trades</b><br>${trades.length}</div>
+    <div class="c"><b>Trades</b><br>${trades.filter(t => !t.isCloseMarker).length}</div>
     <div class="c"><b>Closed</b><br>${m.closed.length}</div>
     <div class="c"><b>Net P&L</b><br>${m.pnl >= 0 ? '+' : '-'}$${Math.abs(m.pnl).toFixed(2)}</div>
   </div>
@@ -2876,7 +2901,7 @@ function renderStrategyTab() {
     const grossW = d.pnls.filter(v => v > 0).reduce((s,v)=>s+v,0);
     const grossL = Math.abs(d.pnls.filter(v => v <= 0).reduce((s,v)=>s+v,0));
     const pf = grossL > 0 ? grossW / grossL : grossW > 0 ? Infinity : 0;
-    return { name, trades: tradesCount, wr, pnl, fees: d.fees, net: pnl - d.fees, pf };
+    return { name, trades: tradesCount, wr, pnl, fees: d.fees, net: pnl, pf };
   }).sort((a,b) => b.net - a.net);
 
   el('str-count', String(rows.length));
@@ -3118,8 +3143,111 @@ function isSchwabAccountStmt(headers) {
   return h.includes('action') && h.some(x => x.includes('fees'));
 }
 
+// Shared pass-2 engine: turns a sorted events array into a trades array.
+// Used by both the CSV and JSON Schwab parsers.
+// csvMode=true: "Assigned" creates a synthetic stock trade (CSV has no separate Buy/Sell for it).
+// csvMode=false: "Assigned" only closes the option (JSON already has explicit Buy/Sell rows).
+function buildTradesFromEvents(events, csvMode = true) {
+  const positionMap = {};
+  const trades = [];
+  let gid = 0;
+  const nextGid = () => `g${++gid}`;
+
+  events.forEach(ev => {
+    const { action, al, isoDate, rawSym, symbol, tradeType, strike, expiry, side, qty, price, comm, amount } = ev;
+    const optKey = tradeType !== 'STOCK' ? `${symbol}_${expiry}_${strike}_${tradeType}` : null;
+
+    // Expired: option closed at $0, no cash impact
+    if (al === 'expired') {
+      if (optKey && positionMap[optKey]) {
+        const pos = positionMap[optKey].find(p => p.open);
+        if (pos) {
+          pos.open = false;
+          // Close marker: lets buildOpenPositionsList remove this position without affecting P&L
+          trades.push({
+            date: isoDate, symbol, type: tradeType, rawSymbol: optKey,
+            side: pos.side === 'SELL' ? 'BUY' : 'SELL',
+            qty: pos.qty, price: 0, commission: 0, strike, expiry, mult: 100,
+            pnl: null, groupId: pos.groupId, action: 'Expired', isCloseMarker: true,
+          });
+        }
+      }
+      return;
+    }
+
+    // Assigned / Exercised
+    if (al === 'assigned' || al === 'exercise' || al === 'exercised') {
+      let matchedPos = null;
+      if (optKey && positionMap[optKey]) {
+        matchedPos = positionMap[optKey].find(p => p.open);
+        if (matchedPos) matchedPos.open = false;
+      }
+      // Close marker for the option position (both CSV and JSON modes)
+      if (optKey && matchedPos) {
+        trades.push({
+          date: isoDate, symbol, type: tradeType, rawSymbol: optKey,
+          side: matchedPos.side === 'SELL' ? 'BUY' : 'SELL',
+          qty: matchedPos.qty, price: 0, commission: 0, strike, expiry, mult: 100,
+          pnl: null, groupId: matchedPos.groupId, action, isCloseMarker: true,
+        });
+      }
+      if (csvMode) {
+        // CSV: no separate Buy/Sell row — synthesize stock trade here
+        const groupId = matchedPos?.groupId || nextGid();
+        let stockSide = tradeType === 'PUT' ? 'BUY' : 'SELL';
+        if (amount !== 0) stockSide = amount < 0 ? 'BUY' : 'SELL';
+        const stockQty = qty * 100;
+        const stockPrice = strike || price;
+        trades.push({
+          date: isoDate, symbol, type: 'STOCK', rawSymbol: symbol,
+          side: stockSide, qty: stockQty, price: stockPrice,
+          commission: +comm.toFixed(2), strike: null, expiry: null, mult: 1,
+          pnl: null, groupId, fromAssignment: true,
+          assignedFromOption: optKey || rawSym, action,
+        });
+        if (matchedPos?.tradeRef) matchedPos.tradeRef.assignedGroupId = groupId;
+      }
+      // JSON mode: stock trade is already in events as a separate Buy/Sell row — skip synthesis
+      return;
+    }
+
+    // Regular open/close trade
+    const groupId = nextGid();
+    const tradeObj = {
+      date: isoDate, symbol, type: tradeType,
+      rawSymbol: optKey || symbol, side, qty,
+      price: +price.toFixed(4), commission: +comm.toFixed(2),
+      strike, expiry, mult: tradeType !== 'STOCK' ? 100 : 1,
+      // Stock: pnl=null (FIFO fills it in). Options: pnl=amount (net cash flow per leg).
+      pnl: tradeType === 'STOCK' ? null : +amount.toFixed(2),
+      groupId, action,
+    };
+    trades.push(tradeObj);
+
+    if (optKey) {
+      if (!positionMap[optKey]) positionMap[optKey] = [];
+      if (al === 'sell to open' || al === 'buy to open') {
+        positionMap[optKey].push({ side, qty, groupId, open: true, tradeRef: tradeObj });
+      } else if (al === 'buy to close' || al === 'sell to close') {
+        const existing = positionMap[optKey]?.find(p => p.open);
+        if (existing) { existing.open = false; tradeObj.groupId = existing.groupId; }
+      }
+    }
+  });
+
+  return trades;
+}
+
+// Income action categories used by both CSV and JSON parsers
+const INCOME_ACTION_MAP = {
+  'cash dividend': 'dividend', 'qualified dividend': 'dividend',
+  'non-qualified div': 'dividend', 'pr yr cash div': 'dividend',
+  'pr yr non-qual div': 'dividend', 'pr yr qual div': 'dividend',
+  'credit interest': 'interest', 'margin interest': 'interest',
+  'adr mgmt fee': 'fee', 'funds received': 'other',
+};
+
 function parseSchwabAccountStmt(content) {
-  // Find header row containing Date + Action + Symbol
   const lines = content.split(/\r?\n/);
   let hi = lines.findIndex(l => /\bDate\b/i.test(l) && /\bAction\b/i.test(l) && /\bSymbol\b/i.test(l));
   if (hi === -1) hi = 0;
@@ -3127,24 +3255,36 @@ function parseSchwabAccountStmt(content) {
   const parsed = Papa.parse(trimmed, { header: true, skipEmptyLines: true });
   const rows = parsed.data || [];
 
-  // Include assignment/exercise/expired so we can track position lifecycle
   const INCLUDE = new Set([
     'buy', 'sell',
     'buy to open', 'sell to open', 'buy to close', 'sell to close',
     'assigned', 'exercise', 'exercised', 'expired',
   ]);
 
-  // ── Pass 1: parse all relevant rows into raw events ──────────────
   const events = [];
+  const income = [];
+
   rows.forEach(row => {
     const action = String(row['Action'] || '').trim();
     const al = action.toLowerCase();
-    if (!al || !INCLUDE.has(al)) return;
+    if (!al) return;
 
     const rawDate = String(row['Date'] || '').trim();
     const dm = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
     if (!dm) return;
     const isoDate = `${dm[3]}-${dm[1].padStart(2,'0')}-${dm[2].padStart(2,'0')}`;
+
+    const feesKey = Object.keys(row).find(k => /fees/i.test(k)) || '';
+    const comm = Math.abs(parseNum(String(row[feesKey] || '').replace(/[$,]/g, '')));
+    const amount = parseNum(String(row['Amount'] || '').replace(/[$,]/g, ''));
+
+    // Capture income events
+    if (INCOME_ACTION_MAP[al]) {
+      if (amount !== 0) income.push({ date: isoDate, symbol: String(row['Symbol'] || '').trim(), action, type: INCOME_ACTION_MAP[al], amount: +amount.toFixed(2) });
+      return;
+    }
+
+    if (!INCLUDE.has(al)) return;
 
     const rawSym = String(row['Symbol'] || '').trim();
     if (!rawSym) return;
@@ -3162,123 +3302,90 @@ function parseSchwabAccountStmt(content) {
     const side = al.startsWith('buy') ? 'BUY' : al.startsWith('sell') ? 'SELL' : null;
     const qty = Math.abs(parseNum(row['Quantity'] || 0)) || 1;
     const price = Math.abs(parseNum(String(row['Price'] || '').replace(/[$,]/g, '')));
-    const feesKey = Object.keys(row).find(k => /fees/i.test(k)) || '';
-    const comm = Math.abs(parseNum(String(row[feesKey] || '').replace(/[$,]/g, '')));
-    const amount = parseNum(String(row['Amount'] || '').replace(/[$,]/g, ''));
 
     events.push({ action, al, isoDate, rawSym, symbol, tradeType, strike, expiry, side, qty, price, comm, amount });
   });
 
   // Schwab CSVs are newest-first — sort ascending so position tracking works
   events.sort((a, b) => a.isoDate.localeCompare(b.isoDate));
+  const trades = buildTradesFromEvents(events, true /* csvMode */);
 
-  // ── Pass 2: build trades with position tracking ───────────────────
-  // positionMap: optionRawSymbol → [{ qty, side, groupId, open, tradeRef }]
-  const positionMap = {};
-  const trades = [];
-  let gid = 0;
-  const nextGid = () => `g${++gid}`;
+  return { trades, balances: [], income };
+}
 
-  events.forEach(ev => {
-    const { action, al, isoDate, rawSym, symbol, tradeType, strike, expiry, side, qty, price, comm, amount } = ev;
-    const optKey = tradeType !== 'STOCK' ? `${symbol}_${expiry}_${strike}_${tradeType}` : null;
+/* ═══ SCHWAB JSON TRANSACTION EXPORT PARSER ═══════════════════════ */
+// Handles Schwab's JSON export format (BrokerageTransactions array).
+// In this format, assignment-triggered stock transactions appear as explicit
+// Buy/Sell rows, so we do NOT synthesize stock trades from Assigned events.
+function parseSchwabJSON(jsonData) {
+  const transactions = jsonData.BrokerageTransactions || [];
 
-    // ── Expired: option closed at $0, no cash impact ────────────────
-    if (al === 'expired') {
-      if (optKey && positionMap[optKey]) {
-        const pos = positionMap[optKey].find(p => p.open);
-        if (pos) pos.open = false;
-      }
-      return; // $0 cash flow — no trade row needed
-    }
+  const TRADE_ACTIONS = new Set([
+    'buy', 'sell',
+    'buy to open', 'sell to open', 'buy to close', 'sell to close',
+  ]);
+  const LIFECYCLE_ACTIONS = new Set(['assigned', 'exercise', 'exercised', 'expired']);
 
-    // ── Assigned / Exercised: option closed, stock position opens ───
-    // Works for BOTH on-expiry AND early assignment — matching is by
-    // option symbol key, never by date comparison.
-    if (al === 'assigned' || al === 'exercise' || al === 'exercised') {
-      let matchedPos = null;
-      if (optKey && positionMap[optKey]) {
-        matchedPos = positionMap[optKey].find(p => p.open);
-        if (matchedPos) matchedPos.open = false;
-      }
+  const events = [];
+  const income = [];
 
-      const groupId = matchedPos?.groupId || nextGid();
+  transactions.forEach(row => {
+    const rawDate = String(row['Date'] || '').trim();
+    const action = String(row['Action'] || '').trim();
+    const al = action.toLowerCase();
+    if (!al || !rawDate) return;
 
-      // Determine stock direction:
-      //   Short PUT assigned  → BUY stock at strike
-      //   Short CALL assigned → SELL stock at strike
-      //   Long CALL exercised → BUY stock at strike
-      //   Long PUT exercised  → SELL stock at strike
-      // (PUT → BUY; CALL → SELL — same rule applies to both short/long)
-      // Override from Amount sign when available (handles edge cases).
-      let stockSide = tradeType === 'PUT' ? 'BUY' : 'SELL';
-      if (amount !== 0) stockSide = amount < 0 ? 'BUY' : 'SELL';
+    // Prefer "as of" date (actual trade/expiry date) over settlement date
+    let effectiveDate = rawDate;
+    const asOfM = rawDate.match(/as of\s+(\d{1,2}\/\d{1,2}\/\d{4})/i);
+    if (asOfM) effectiveDate = asOfM[1];
+    else { const fd = rawDate.match(/^(\d{1,2}\/\d{1,2}\/\d{4})/); if (fd) effectiveDate = fd[1]; }
 
-      const stockQty = qty * 100;
-      const stockPrice = strike || price;
+    const dm = effectiveDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (!dm) return;
+    const isoDate = `${dm[3]}-${dm[1].padStart(2,'0')}-${dm[2].padStart(2,'0')}`;
 
-      trades.push({
-        date: isoDate,
-        symbol,
-        type: 'STOCK',
-        rawSymbol: symbol,
-        side: stockSide,
-        qty: stockQty,
-        price: stockPrice,
-        commission: +comm.toFixed(2),
-        strike: null,
-        expiry: null,
-        mult: 1,
-        pnl: null,           // open position — stock FIFO will realize P&L on the matching sell
-        groupId,
-        fromAssignment: true,
-        assignedFromOption: optKey || rawSym,   // e.g. "TSLA_2026-01-02_450_PUT"
-        action,
-      });
+    const comm = Math.abs(parseNum(String(row['Fees & Comm'] || '').replace(/[$,]/g, '')));
+    const amount = parseNum(String(row['Amount'] || '').replace(/[$,]/g, ''));
 
-      // Back-link the option open trade so the UI can show the chain
-      if (matchedPos?.tradeRef) matchedPos.tradeRef.assignedGroupId = groupId;
+    // Income events (dividends, interest, fees)
+    if (INCOME_ACTION_MAP[al]) {
+      if (amount !== 0) income.push({ date: isoDate, symbol: String(row['Symbol'] || '').trim(), action, type: INCOME_ACTION_MAP[al], amount: +amount.toFixed(2) });
       return;
     }
 
-    // ── Regular open/close trades ────────────────────────────────────
-    const groupId = nextGid();
-    const isStockBuy = tradeType === 'STOCK' && side === 'BUY';
+    if (!TRADE_ACTIONS.has(al) && !LIFECYCLE_ACTIONS.has(al)) return;
 
-    const tradeObj = {
-      date: isoDate,
-      symbol,
-      type: tradeType,
-      rawSymbol: optKey || symbol,
-      side,
-      qty,
-      price: +price.toFixed(4),
-      commission: +comm.toFixed(2),
-      strike,
-      expiry,
-      mult: tradeType !== 'STOCK' ? 100 : 1,
-      // Stock buys: pnl = null (open position, FIFO will close it)
-      // Stock sells: pnl = null initially; fifoMatchStocks fills it in
-      // Options:     pnl = amount (cash-flow per leg — correct for options)
-      pnl: tradeType === 'STOCK' ? null : +amount.toFixed(2),
-      groupId,
-      action,
-    };
-    trades.push(tradeObj);
+    const rawSym = String(row['Symbol'] || '').trim();
+    if (!rawSym && !LIFECYCLE_ACTIONS.has(al)) return;
 
-    // Track open option positions for future assignment matching
-    if (optKey) {
-      if (!positionMap[optKey]) positionMap[optKey] = [];
-      if (al === 'sell to open' || al === 'buy to open') {
-        positionMap[optKey].push({ side, qty, groupId, open: true, tradeRef: tradeObj });
-      } else if (al === 'buy to close' || al === 'sell to close') {
-        const existing = positionMap[optKey]?.find(p => p.open);
-        if (existing) { existing.open = false; tradeObj.groupId = existing.groupId; }
-      }
+    let symbol = rawSym, tradeType = 'STOCK', strike = null, expiry = null;
+    const optM = rawSym.match(/^([A-Z0-9]+)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+([\d.]+)\s+([CP])$/i);
+    if (optM) {
+      symbol = optM[1].toUpperCase();
+      const dm2 = optM[2].match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (dm2) expiry = `${dm2[3]}-${dm2[1].padStart(2,'0')}-${dm2[2].padStart(2,'0')}`;
+      strike = parseFloat(optM[3]);
+      tradeType = optM[4].toUpperCase() === 'P' ? 'PUT' : 'CALL';
+    } else if (rawSym) {
+      symbol = rawSym.toUpperCase();
     }
+
+    const side = al.startsWith('buy') ? 'BUY' : al.startsWith('sell') ? 'SELL' : null;
+    const qty = Math.abs(parseNum(String(row['Quantity'] || '0'))) || 1;
+    const price = Math.abs(parseNum(String(row['Price'] || '').replace(/[$,]/g, '')));
+
+    events.push({ action, al, isoDate, rawSym, symbol, tradeType, strike, expiry, side, qty, price, comm, amount });
   });
 
-  return { trades, balances: [] };
+  // Sort ascending (transactions in JSON may be newest-first)
+  events.sort((a, b) => a.isoDate.localeCompare(b.isoDate));
+
+  // csvMode=false: Assigned events close the option but do NOT synthesize stock trades
+  // because JSON already contains explicit Buy/Sell rows for assignment-triggered stock.
+  const trades = buildTradesFromEvents(events, false /* csvMode */);
+
+  return { trades, balances: [], income };
 }
 /* ═══ END SCHWAB ACCOUNT STATEMENT PARSER ══════════════════════════ */
 
@@ -3367,6 +3474,25 @@ function fifoMatchTrades(trades) {
 /* ═══ END SCHWAB PARSER ═════════════════════════════════════════── */
 
 function autoDetectMapping(csv) {
+  // Check Schwab JSON export format first (strip BOM if present)
+  const cleaned = csv.replace(/^\uFEFF/, '').trim();
+  logProcess(`🔎 File starts with: ${JSON.stringify(cleaned.slice(0, 60))}`, 'info');
+  try {
+    const j = JSON.parse(cleaned);
+    const keys = j ? Object.keys(j).slice(0, 5).join(', ') : 'null';
+    logProcess(`🔑 JSON top-level keys: ${keys}`, 'info');
+    if (j && Array.isArray(j.BrokerageTransactions)) {
+      logProcess('🏦 Schwab JSON transaction export detected — using built-in parser', 'ok');
+      const mapSec = document.getElementById('mapping-section');
+      if (mapSec) mapSec.innerHTML = `<p style="color:var(--pos);font-weight:600;margin:0;">✅ Schwab JSON detected — column mapping not required. Click <strong>Process</strong>.</p>`;
+      return;
+    } else if (j) {
+      logProcess(`⚠️ JSON parsed but no BrokerageTransactions key found. Keys: ${keys}`, 'warn');
+    }
+  } catch(e) {
+    logProcess(`❌ JSON parse failed: ${e.message}`, 'err');
+  }
+
   // Check new Schwab account statement format first (Date/Action/Symbol/Qty/Price/Fees & Comm/Amount)
   const quickParsed = Papa.parse(csv, { header: true, skipEmptyLines: true, preview: 1 });
   const quickHeaders = quickParsed.meta.fields || [];
@@ -3412,26 +3538,57 @@ function processData() {
   // Detect format from first file
   const firstContent = parsedFiles[0].content;
 
-  // Check new Schwab account statement format first
+  // ── Check Schwab JSON export format first ──────────────────────────
+  let jsonParsed = null;
+  try { jsonParsed = JSON.parse(firstContent.replace(/^\uFEFF/, '').trim()); } catch(e) {}
+  const isSchwabJson = !!(jsonParsed && Array.isArray(jsonParsed.BrokerageTransactions));
+
+  // Check new Schwab account statement CSV format
   const quickSniff = Papa.parse(firstContent, { header: true, skipEmptyLines: true, preview: 1 });
-  const isNewSchwab = isSchwabAccountStmt(quickSniff.meta.fields || []);
+  const isNewSchwab = !isSchwabJson && isSchwabAccountStmt(quickSniff.meta.fields || []);
 
   // Check old Schwab thinkorswim format
   const firstLines = firstContent.split(/\r?\n/);
   const hi = firstLines.findIndex(l => /DATE/i.test(l) && /DESCRIPTION/i.test(l));
   const trimmedFirst = firstLines.slice(hi >= 0 ? hi : 0).join('\n');
   const sniffed = Papa.parse(trimmedFirst, { header: true, skipEmptyLines: true, preview: 1 });
-  const isSchWab = !isNewSchwab && isSchWabStatement(sniffed.meta.fields || []);
+  const isSchWab = !isSchwabJson && !isNewSchwab && isSchWabStatement(sniffed.meta.fields || []);
 
   let result = [];
   let balanceResult = [];
+  let incomeResult = [];
 
-  if (isNewSchwab) {
-    // ── Schwab account statement path (Date/Action/Symbol/Qty/Price/Fees & Comm/Amount)
+  if (isSchwabJson) {
+    // ── Schwab JSON export path (BrokerageTransactions array) ─────────
+    let allRaw = [];
+    parsedFiles.forEach(f => {
+      let jd = null;
+      try { jd = JSON.parse(f.content.replace(/^\uFEFF/, '').trim()); } catch(e) {}
+      if (!jd || !Array.isArray(jd.BrokerageTransactions)) return;
+      const r = parseSchwabJSON(jd);
+      allRaw = allRaw.concat(r.trades || []);
+      incomeResult = incomeResult.concat(r.income || []);
+    });
+    const seen = new Set();
+    allRaw = allRaw.filter(t => {
+      const k = `${t.date}|${t.rawSymbol}|${t.side}|${t.qty}|${t.price}`;
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    });
+    fifoMatchStocks(allRaw);
+    result = allRaw;
+    const openStocks = allRaw.filter(t => t.type === 'STOCK' && t.pnl === null);
+    logProcess(`📊 Schwab JSON: ${result.length} trades parsed`, 'ok');
+    if (incomeResult.length) logProcess(`💵 ${incomeResult.length} income events (dividends/interest) captured`, 'ok');
+    if (openStocks.length) logProcess(`📂 ${openStocks.length} open stock position(s)`, 'info');
+
+  } else if (isNewSchwab) {
+    // ── Schwab account statement CSV path ────────────────────────────
     let allRaw = [];
     parsedFiles.forEach(f => {
       const r = parseSchwabAccountStmt(f.content);
       allRaw = allRaw.concat(r.trades || []);
+      incomeResult = incomeResult.concat(r.income || []);
     });
     const seen = new Set();
     allRaw = allRaw.filter(t => {
@@ -3447,6 +3604,7 @@ function processData() {
     const openStocks = allRaw.filter(t => t.type === 'STOCK' && t.pnl === null && !t.fromAssignment);
     logProcess(`📊 Schwab account statement: ${result.length} trades parsed`, 'ok');
     if (assigned.length) logProcess(`🔗 ${assigned.length} assignment/exercise event(s) detected — synthetic stock position(s) created`, 'ok');
+    if (incomeResult.length) logProcess(`💵 ${incomeResult.length} income events (dividends/interest) captured`, 'ok');
     if (openStocks.length) logProcess(`📂 ${openStocks.length} open stock position(s) (upload older CSV to compute cost basis)`, 'info');
 
   } else if (isSchWab) {
@@ -3531,12 +3689,27 @@ function processData() {
     rawBalances = [];
   }
 
+  // Merge income events (deduplicate by date+symbol+action+amount)
+  if (incomeResult.length) {
+    if (skipDupes) {
+      const existingInc = new Set(rawIncome.map(i => `${i.date}|${i.symbol}|${i.action}|${i.amount}`));
+      const newInc = incomeResult.filter(i => !existingInc.has(`${i.date}|${i.symbol}|${i.action}|${i.amount}`));
+      rawIncome = [...rawIncome, ...newInc];
+    } else {
+      rawIncome = incomeResult;
+    }
+  } else if (!skipDupes && (isSchwabJson || isNewSchwab)) {
+    rawIncome = [];
+  }
+
   localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
   localStorage.setItem('tickeros_balances', JSON.stringify(rawBalances));
+  localStorage.setItem('tickeros_income', JSON.stringify(rawIncome));
   clearBtn.disabled = false;
   logProcess(`✅ Imported ${added - skipped} trades${skipped ? ` (${skipped} skipped)` : ''}`, 'ok');
   logProcess(`📊 Total stored: ${rawTrades.length} trades`, 'info');
   if (rawBalances.length) logProcess(`💰 Total stored: ${rawBalances.length} balance snapshots`, 'info');
+  if (rawIncome.length) logProcess(`💵 Total stored: ${rawIncome.length} income events`, 'info');
   toast('Data imported! Refreshing dashboard...', 'ok');
   saveToServer();
   setTimeout(() => { renderDashboard(); showTab('dashboard'); }, 800);
@@ -3546,8 +3719,10 @@ clearBtn.addEventListener('click', () => {
   if (!confirm('Clear all stored trade data?')) return;
   rawTrades = [];
   rawBalances = [];
+  rawIncome = [];
   localStorage.removeItem('tickeros_trades');
   localStorage.removeItem('tickeros_balances');
+  localStorage.removeItem('tickeros_income');
   clearBtn.disabled = true;
   processBtn.disabled = true;
   logProcess('🗑️ Data cleared', 'warn');

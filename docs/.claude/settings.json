@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(openssl req:*)",
+      "Bash(node server.js)",
+      "Bash(git add:*)",
+      "Bash(bash restart_server.sh)",
+      "Bash(bash /media/osaenz/2ndsk1/github/trading_journal/stock_journal/restart_server.sh)",
+      "Read(//media/osaenz/2ndsk1/github/trading_journal/**)",
+      "Bash(git -C /media/osaenz/2ndsk1/github/trading_journal log --oneline -3)"
+    ]
+  }
+}
