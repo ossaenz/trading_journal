@@ -1085,13 +1085,9 @@ tbody td {
             <div class="stat-item"><span class="stat-label">This Month</span><span class="stat-val" id="stat-month-pnl">$0</span></div>
             <div class="stat-item"><span class="stat-label">Div Income</span><span class="stat-val pos" id="stat-income">$0</span></div>
             <div class="stat-item"><span class="stat-label">Unrealized (Open)</span><span class="stat-val accent" id="stat-unrealized">$0</span></div>
-            <div class="stat-item" title="Enter wash sale disallowance from your broker (e.g. Schwab Gain/Loss page)">
-              <span class="stat-label">Wash Sale Adj</span>
-              <span class="stat-val" style="display:flex;align-items:center;gap:4px;">
-                <span style="color:var(--neg);font-size:11px;">-$</span><input id="wash-sale-input" type="number" min="0" step="0.01" placeholder="0.00"
-                  style="width:72px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--neg);font-size:12px;font-family:inherit;padding:0 2px;outline:none;"
-                  oninput="localStorage.setItem('tickeros_wash_sale',this.value);updateWashSaleDisplay()">
-              </span>
+            <div class="stat-item" title="Auto-computed wash sale disallowances (IRS 30-day rule)">
+              <span class="stat-label">Wash Sales</span>
+              <span class="stat-val neg" id="stat-wash-sale">$0.00</span>
             </div>
             <div class="stat-item"><span class="stat-label">Adj Net P&L</span><span class="stat-val" id="stat-adj-pnl">—</span></div>
           </div>
@@ -1956,12 +1952,59 @@ function calcMetrics(trades) {
   }
   const annualPnl = pnl / daysTraded * 365;
   const openCapital = computeOpenCapitalMetrics(trades);
+  const washSaleData = computeWashSales(realTrades);
 
   return {
     trades, closed, open, wins, losses, pnl, realizedPnl, unrealizedProxy, grossW, grossL, comm, wr, avgW, avgL,
     pf, exp, maxDD, bestWS, bestLS, equity, dates, byDate, byTicker, typeCounts,
     byStrategy, taxLots, annualPnl, firstDate, lastDate, openCapital,
+    washSaleDisallowed: washSaleData.totalDisallowed,
+    washTrades: washSaleData.washTrades,
   };
+}
+
+/* ── Wash Sale Detection ──────────────────────────────────────────────────
+   IRS rule: if you sell at a loss AND buy the same symbol within 30 days
+   before or after the sale, the loss is disallowed.
+   We compute this per-symbol across all closed losing trades.
+──────────────────────────────────────────────────────────────────────── */
+function computeWashSales(trades) {
+  // Build a timeline of all BUY events by symbol
+  const buysBySymbol = {};
+  trades.forEach(t => {
+    if (t.isCloseMarker) return;
+    const sym = (t.symbol || '').toUpperCase();
+    if (!sym) return;
+    const side = (t.side || '').toUpperCase();
+    const d = t.date ? new Date(t.date) : null;
+    if (!d || isNaN(d)) return;
+    if (side === 'BUY') {
+      if (!buysBySymbol[sym]) buysBySymbol[sym] = [];
+      buysBySymbol[sym].push(d.getTime());
+    }
+  });
+
+  let totalDisallowed = 0;
+  const washTrades = [];
+
+  trades.forEach(t => {
+    if (t.isCloseMarker || t.pnl == null || t.pnl >= 0) return;
+    const sym = (t.symbol || '').toUpperCase();
+    const saleDate = t.date ? new Date(t.date).getTime() : null;
+    if (!saleDate) return;
+    const buys = buysBySymbol[sym] || [];
+    const window30 = 30 * 24 * 60 * 60 * 1000;
+    const hasWash = buys.some(bd => {
+      const diff = bd - saleDate; // positive = buy after sale, negative = buy before sale
+      return diff >= -window30 && diff <= window30 && Math.abs(diff) > 0;
+    });
+    if (hasWash) {
+      totalDisallowed += Math.abs(t.pnl);
+      washTrades.push({ ...t, washDisallowed: Math.abs(t.pnl) });
+    }
+  });
+
+  return { totalDisallowed: +totalDisallowed.toFixed(2), washTrades };
 }
 
 function computeOpenCapitalMetrics(trades) {
@@ -2175,7 +2218,7 @@ function renderDashboard() {
     unrealEl.textContent = (netPrem >= 0 ? '+' : '-') + '$' + Math.abs(netPrem).toFixed(2);
     unrealEl.className = 'stat-val ' + (netPrem >= 0 ? 'pos' : 'neg');
   }
-  updateWashSaleDisplay();
+  updateWashSaleDisplay(m);
 
   // Equity chart
   mkChart('equityChart', 'line', {
@@ -2227,51 +2270,34 @@ function renderDashboard() {
 /* ═══════════════════════════════════════════════════════════════
    Wash-sale adjustment — called on input change + after render
 ═══════════════════════════════════════════════════════════════ */
-function updateWashSaleDisplay() {
-  const washInput = document.getElementById('wash-sale-input');
-  const washAdj = washInput ? Math.abs(parseFloat(washInput.value) || 0) : 0;
-  const trades = getFilteredTrades();
-  const m = calcMetrics(trades);
+function updateWashSaleDisplay(m) {
+  if (!m) { const trades = getFilteredTrades(); m = calcMetrics(trades); }
+  const washAdj = m.washSaleDisallowed || 0;
   const incomeForPnl = getFilteredIncome().reduce((s, inc) => s + Number(inc.amount || 0), 0);
   const totalWithIncome = m.pnl + incomeForPnl;
   const adjTotal = totalWithIncome - washAdj;
   const fmt = v => (v >= 0 ? '+' : '') + '$' + Math.abs(v).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
 
-  // Helper to update any wash-adj display element
-  const setWashEl = (valId, subId, subText) => {
+  const setWashEl = (valId, subId) => {
     const valEl = document.getElementById(valId);
     const subEl = document.getElementById(subId);
     if (!valEl) return;
-    if (washAdj > 0) {
-      valEl.textContent = fmt(adjTotal);
-      valEl.style.color = adjTotal >= 0 ? 'var(--pos)' : 'var(--neg)';
-      if (subEl) subEl.textContent = subText;
-    } else {
-      valEl.textContent = '—';
-      valEl.style.color = 'var(--muted)';
-      if (subEl) subEl.textContent = 'enter adj below ↓';
-    }
+    valEl.textContent = fmt(adjTotal);
+    valEl.style.color = adjTotal >= 0 ? 'var(--pos)' : 'var(--neg)';
+    if (subEl) subEl.textContent = `-$${washAdj.toFixed(2)} wash sales (auto)`;
   };
 
-  // Dashboard KPI box
-  setWashEl('kpi-wash-adj', 'kpi-wash-sub', `-$${washAdj.toFixed(2)} wash sales`);
+  setWashEl('kpi-wash-adj', 'kpi-wash-sub');
 
-  // Stats strip "Adj Net P&L"
   const adjEl = document.getElementById('stat-adj-pnl');
-  if (adjEl) {
-    if (washAdj > 0) {
-      adjEl.textContent = fmt(adjTotal);
-      adjEl.className = 'stat-val ' + (adjTotal >= 0 ? 'pos' : 'neg');
-    } else {
-      adjEl.textContent = '—';
-      adjEl.className = 'stat-val';
-    }
-  }
+  if (adjEl) { adjEl.textContent = fmt(adjTotal); adjEl.className = 'stat-val ' + (adjTotal >= 0 ? 'pos' : 'neg'); }
 
-  // P&L tab wash-sale box
-  setWashEl('pnl-wash-adj', 'pnl-wash-sub', `-$${washAdj.toFixed(2)} wash sales`);
+  const washStatEl = document.getElementById('stat-wash-sale');
+  if (washStatEl) { washStatEl.textContent = '-$' + washAdj.toFixed(2); }
 
-  // P&L tab unrealized strip
+  setWashEl('pnl-wash-adj', 'pnl-wash-sub');
+
+  // Unrealized strip
   const cap = m.openCapital || {};
   const si = id => document.getElementById(id);
   const fmtAbs = v => '$' + Math.abs(v).toLocaleString('en', {minimumFractionDigits:2,maximumFractionDigits:2});
@@ -2302,7 +2328,7 @@ function renderPnlTab() {
   const totalWithIncome = m.pnl + incomeForPnl;
   el('pnl-net', fmt(totalWithIncome)); styleSign('pnl-net', totalWithIncome);
   el('pnl-fees', 'options ' + (m.pnl >= 0 ? '+' : '') + '$' + m.pnl.toFixed(2) + ' + div $' + incomeForPnl.toFixed(2));
-  updateWashSaleDisplay();
+  updateWashSaleDisplay(m);
 
   // Monthly P&L
   const monthly = {};
@@ -4186,13 +4212,6 @@ document.getElementById('deepdive-symbol')?.addEventListener('keydown', e => {
 });
 
 /* ═══════════════════════════ INIT ═══════════════════════════ */
-// Restore wash sale after all functions are defined
-(function() {
-  const saved = localStorage.getItem('tickeros_wash_sale');
-  if (!saved) return;
-  const inp = document.getElementById('wash-sale-input');
-  if (inp) inp.value = saved;
-})();
 renderDashboard();
 </script>
 </body>
