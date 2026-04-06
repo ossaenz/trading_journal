@@ -1959,52 +1959,59 @@ function calcMetrics(trades) {
     pf, exp, maxDD, bestWS, bestLS, equity, dates, byDate, byTicker, typeCounts,
     byStrategy, taxLots, annualPnl, firstDate, lastDate, openCapital,
     washSaleDisallowed: washSaleData.totalDisallowed,
-    washTrades: washSaleData.washTrades,
   };
 }
 
 /* ── Wash Sale Detection ──────────────────────────────────────────────────
-   IRS rule: if you sell at a loss AND buy the same symbol within 30 days
-   before or after the sale, the loss is disallowed.
-   We compute this per-symbol across all closed losing trades.
+   IRS rule: sell stock at a loss, buy same stock within 30 days after →
+   loss disallowed proportional to shares repurchased.
+   We only track STOCK trades (options require lot-level data we don't have).
 ──────────────────────────────────────────────────────────────────────── */
 function computeWashSales(trades) {
-  // Build a timeline of all BUY events by symbol
-  const buysBySymbol = {};
-  trades.forEach(t => {
-    if (t.isCloseMarker) return;
-    const sym = (t.symbol || '').toUpperCase();
-    if (!sym) return;
-    const side = (t.side || '').toUpperCase();
-    const d = t.date ? new Date(t.date) : null;
-    if (!d || isNaN(d)) return;
-    if (side === 'BUY') {
-      if (!buysBySymbol[sym]) buysBySymbol[sym] = [];
-      buysBySymbol[sym].push(d.getTime());
-    }
-  });
+  const W = 30 * 24 * 60 * 60 * 1000;
+
+  // Only stock trades, sorted chronologically
+  const stockTrades = trades
+    .filter(t => !t.isCloseMarker && (t.type || 'STOCK').toUpperCase() === 'STOCK')
+    .map(t => ({
+      sym: (t.symbol || '').toUpperCase(),
+      side: (t.side || '').toUpperCase(),
+      qty: Math.abs(Number(t.qty || 0)),
+      pnl: t.pnl,
+      ts: t.date ? new Date(t.date).getTime() : 0,
+    }))
+    .filter(t => t.sym && t.qty > 0 && t.ts > 0)
+    .sort((a, b) => a.ts - b.ts);
+
+  // Pool of future buys with remaining qty available to trigger wash sales
+  const futureBuys = stockTrades
+    .filter(t => t.side === 'BUY')
+    .map(t => ({ ...t, remaining: t.qty }));
 
   let totalDisallowed = 0;
-  const washTrades = [];
 
-  trades.forEach(t => {
-    if (t.isCloseMarker || t.pnl == null || t.pnl >= 0) return;
-    const sym = (t.symbol || '').toUpperCase();
-    const saleDate = t.date ? new Date(t.date).getTime() : null;
-    if (!saleDate) return;
-    const buys = buysBySymbol[sym] || [];
-    const window30 = 30 * 24 * 60 * 60 * 1000;
-    const hasWash = buys.some(bd => {
-      const diff = bd - saleDate; // positive = buy after sale, negative = buy before sale
-      return diff >= -window30 && diff <= window30 && Math.abs(diff) > 0;
-    });
-    if (hasWash) {
-      totalDisallowed += Math.abs(t.pnl);
-      washTrades.push({ ...t, washDisallowed: Math.abs(t.pnl) });
+  stockTrades.forEach(sale => {
+    if (sale.side !== 'SELL' || sale.pnl == null || sale.pnl >= 0) return;
+    const lossPerShare = Math.abs(sale.pnl) / sale.qty;
+    let sharesWashed = 0;
+    let saleRemaining = sale.qty;
+
+    // Match against buys that happen within 30 days AFTER this sale
+    for (const buy of futureBuys) {
+      if (saleRemaining <= 0) break;
+      if (buy.sym !== sale.sym || buy.remaining <= 0) continue;
+      const diff = buy.ts - sale.ts;
+      if (diff <= 0 || diff > W) continue;
+      const matched = Math.min(buy.remaining, saleRemaining);
+      buy.remaining -= matched;
+      saleRemaining -= matched;
+      sharesWashed += matched;
     }
+
+    totalDisallowed += sharesWashed * lossPerShare;
   });
 
-  return { totalDisallowed: +totalDisallowed.toFixed(2), washTrades };
+  return { totalDisallowed: +totalDisallowed.toFixed(2) };
 }
 
 function computeOpenCapitalMetrics(trades) {
