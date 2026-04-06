@@ -1760,7 +1760,7 @@ let selectedTicker = '';
   const saved = localStorage.getItem('tickeros_wash_sale');
   if (!saved) return;
   const inp = document.getElementById('wash-sale-input');
-  if (inp) inp.value = saved;
+  if (inp) { inp.value = saved; updateWashSaleDisplay(); }
 })();
 
 localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
@@ -4043,7 +4043,8 @@ async function saveToDrive() {
   if (!gdriveToken) { toast('Sign in to Google Drive first', 'err'); return; }
   try {
     driveStatus('saving…', 'var(--warn)');
-    const content = JSON.stringify({ updated_at: new Date().toISOString(), trades: rawTrades, balances: rawBalances });
+    const washSaleVal = localStorage.getItem('tickeros_wash_sale') || '';
+    const content = JSON.stringify({ updated_at: new Date().toISOString(), trades: rawTrades, balances: rawBalances, income: rawIncome, wash_sale: washSaleVal });
     const blob = new Blob([content], { type: 'application/json' });
     const fileId = await gdriveFindFile();
     if (fileId) {
@@ -4090,8 +4091,15 @@ async function loadFromDrive() {
     const data = await r.json();
     rawTrades = sanitizeStoredTrades(Array.isArray(data.trades) ? data.trades : []);
     rawBalances = Array.isArray(data.balances) ? data.balances : [];
+    rawIncome = Array.isArray(data.income) ? data.income : [];
     localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
     localStorage.setItem('tickeros_balances', JSON.stringify(rawBalances));
+    localStorage.setItem('tickeros_income', JSON.stringify(rawIncome));
+    if (data.wash_sale) {
+      localStorage.setItem('tickeros_wash_sale', data.wash_sale);
+      const inp = document.getElementById('wash-sale-input');
+      if (inp) inp.value = data.wash_sale;
+    }
     clearBtn.disabled = rawTrades.length === 0;
     renderDashboard();
     showTab('dashboard');
