@@ -1755,13 +1755,6 @@ let parsedFiles = [];
 let charts = {};
 let selectedTicker = '';
 
-// Restore saved wash sale adjustment
-(function restoreWashSale() {
-  const saved = localStorage.getItem('tickeros_wash_sale');
-  if (!saved) return;
-  const inp = document.getElementById('wash-sale-input');
-  if (inp) { inp.value = saved; updateWashSaleDisplay(); }
-})();
 
 localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
 
@@ -4193,6 +4186,13 @@ document.getElementById('deepdive-symbol')?.addEventListener('keydown', e => {
 });
 
 /* ═══════════════════════════ INIT ═══════════════════════════ */
+// Restore wash sale after all functions are defined
+(function() {
+  const saved = localStorage.getItem('tickeros_wash_sale');
+  if (!saved) return;
+  const inp = document.getElementById('wash-sale-input');
+  if (inp) inp.value = saved;
+})();
 renderDashboard();
 </script>
 </body>
