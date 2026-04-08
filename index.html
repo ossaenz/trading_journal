@@ -1965,13 +1965,11 @@ function calcMetrics(trades) {
   }
   const annualPnl = pnl / daysTraded * 365;
   const openCapital = computeOpenCapitalMetrics(trades);
-  const washSaleData = computeWashSales(realTrades);
 
   return {
     trades, closed, open, wins, losses, pnl, realizedPnl, unrealizedProxy, grossW, grossL, comm, wr, avgW, avgL,
     pf, exp, maxDD, bestWS, bestLS, equity, dates, byDate, byTicker, typeCounts,
     byStrategy, taxLots, annualPnl, firstDate, lastDate, openCapital,
-    washSaleDisallowed: washSaleData.totalDisallowed,
   };
 }
 
