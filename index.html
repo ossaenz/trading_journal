@@ -1044,11 +1044,6 @@ tbody td {
               <div class="kpi-val accent" id="kpi-pnl">$0.00</div>
               <div class="kpi-sub" id="kpi-roi">ROI: —</div>
             </div>
-            <div class="kpi" style="border-color:var(--neg);">
-              <div class="kpi-label">After Wash Sales</div>
-              <div class="kpi-val" id="kpi-wash-adj">—</div>
-              <div class="kpi-sub" id="kpi-wash-sub">enter adj below ↓</div>
-            </div>
             <div class="kpi kpi-pos">
               <div class="kpi-label">Win Rate</div>
               <div class="kpi-val" id="kpi-wr">0.0%</div>
@@ -1099,7 +1094,6 @@ tbody td {
                   oninput="localStorage.setItem('tickeros_wash_sale',this.value);updateWashSaleDisplay()">
               </span>
             </div>
-            <div class="stat-item"><span class="stat-label">Adj Net P&L</span><span class="stat-val" id="stat-adj-pnl">—</span></div>
           </div>
 
           <!-- Charts Row 1 -->
@@ -1145,12 +1139,11 @@ tbody td {
 
       <!-- ════════════════════════════════ P&L ANALYSIS ════════════════════════════════ -->
       <section id="tab-pnl" class="tab-section">
-        <div class="kpi-row" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px;">
+        <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
           <div class="kpi kpi-accent"><div class="kpi-label">Total Realized</div><div class="kpi-val accent" id="pnl-total">$0</div><div class="kpi-sub">closed trades only</div></div>
           <div class="kpi kpi-pos"><div class="kpi-label">Gross Profit</div><div class="kpi-val pos" id="pnl-gross-w">$0</div><div class="kpi-sub" id="pnl-cnt-w">0 wins</div></div>
           <div class="kpi kpi-neg"><div class="kpi-label">Gross Loss</div><div class="kpi-val neg" id="pnl-gross-l">$0</div><div class="kpi-sub" id="pnl-cnt-l">0 losses</div></div>
           <div class="kpi kpi-gold"><div class="kpi-label">Total w/ Income</div><div class="kpi-val gold" id="pnl-net">$0</div><div class="kpi-sub" id="pnl-fees">options + dividends</div></div>
-          <div class="kpi" style="border-color:var(--neg);"><div class="kpi-label">Wash Sale Adj</div><div class="kpi-val" id="pnl-wash-adj">—</div><div class="kpi-sub" id="pnl-wash-sub">enter adj in dashboard</div></div>
         </div>
         <!-- Unrealized open positions strip -->
         <div class="stats-strip" style="margin-bottom:12px;" id="unrealized-strip">
@@ -2235,33 +2228,15 @@ function renderDashboard() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Wash-sale adjustment — called on input change + after render
+   Wash-sale display — informational only (not subtracted from P&L)
 ═══════════════════════════════════════════════════════════════ */
 function updateWashSaleDisplay(m) {
   if (!m) { const trades = getFilteredTrades(); m = calcMetrics(trades); }
   const washAdj = Math.abs(parseFloat(localStorage.getItem('tickeros_wash_sale') || '0'));
-  // "After Wash Sales" = Net P&L - disallowed losses (matches Schwab Gain/Loss page)
-  const adjTotal = m.pnl - washAdj;
-  const fmt = v => (v >= 0 ? '+' : '') + '$' + Math.abs(v).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
 
-  const setWashEl = (valId, subId) => {
-    const valEl = document.getElementById(valId);
-    const subEl = document.getElementById(subId);
-    if (!valEl) return;
-    valEl.textContent = fmt(adjTotal);
-    valEl.style.color = adjTotal >= 0 ? 'var(--pos)' : 'var(--neg)';
-    if (subEl) subEl.textContent = washAdj > 0 ? `-$${washAdj.toFixed(2)} disallowed` : 'enter Schwab disallowed loss ↓';
-  };
-
-  setWashEl('kpi-wash-adj', 'kpi-wash-sub');
-
-  const adjEl = document.getElementById('stat-adj-pnl');
-  if (adjEl) { adjEl.textContent = fmt(adjTotal); adjEl.className = 'stat-val ' + (adjTotal >= 0 ? 'pos' : 'neg'); }
-
+  // Wash Sales display in stats strip (for reference only)
   const washStatEl = document.getElementById('stat-wash-sale');
   if (washStatEl) { washStatEl.textContent = '-$' + washAdj.toFixed(2); }
-
-  setWashEl('pnl-wash-adj', 'pnl-wash-sub');
 
   // Unrealized strip
   const cap = m.openCapital || {};
