@@ -2240,9 +2240,8 @@ function renderDashboard() {
 function updateWashSaleDisplay(m) {
   if (!m) { const trades = getFilteredTrades(); m = calcMetrics(trades); }
   const washAdj = Math.abs(parseFloat(localStorage.getItem('tickeros_wash_sale') || '0'));
-  const incomeForPnl = getFilteredIncome().reduce((s, inc) => s + Number(inc.amount || 0), 0);
-  const totalWithIncome = m.pnl + incomeForPnl;
-  const adjTotal = totalWithIncome - washAdj;
+  // "After Wash Sales" = Net P&L - disallowed losses (matches Schwab Gain/Loss page)
+  const adjTotal = m.pnl - washAdj;
   const fmt = v => (v >= 0 ? '+' : '') + '$' + Math.abs(v).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
 
   const setWashEl = (valId, subId) => {
@@ -2251,7 +2250,7 @@ function updateWashSaleDisplay(m) {
     if (!valEl) return;
     valEl.textContent = fmt(adjTotal);
     valEl.style.color = adjTotal >= 0 ? 'var(--pos)' : 'var(--neg)';
-    if (subEl) subEl.textContent = `-$${washAdj.toFixed(2)} wash sales (auto)`;
+    if (subEl) subEl.textContent = washAdj > 0 ? `-$${washAdj.toFixed(2)} disallowed` : 'enter Schwab disallowed loss ↓';
   };
 
   setWashEl('kpi-wash-adj', 'kpi-wash-sub');
