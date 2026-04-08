@@ -3446,6 +3446,12 @@ function parseSchwabJSON(jsonData) {
       return;
     }
 
+    // Wash sale adjustments — capture and store, skip as trade
+    if (al === 'wash sale' || al === 'wash sale adj' || al.includes('wash sale')) {
+      if (amount !== 0) income.push({ date: isoDate, symbol: String(row['Symbol'] || '').trim(), action, type: 'wash_sale', amount: +amount.toFixed(2) });
+      return;
+    }
+
     if (!TRADE_ACTIONS.has(al) && !LIFECYCLE_ACTIONS.has(al)) return;
 
     const rawSym = String(row['Symbol'] || '').trim();
@@ -3797,6 +3803,17 @@ function processData() {
   localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
   localStorage.setItem('tickeros_balances', JSON.stringify(rawBalances));
   localStorage.setItem('tickeros_income', JSON.stringify(rawIncome));
+
+  // Auto-extract wash sale disallowances from income entries (Schwab JSON includes these)
+  const washSaleEntries = rawIncome.filter(i => i.type === 'wash_sale');
+  if (washSaleEntries.length) {
+    const totalWash = Math.abs(washSaleEntries.reduce((s, i) => s + Number(i.amount || 0), 0));
+    localStorage.setItem('tickeros_wash_sale', totalWash.toFixed(2));
+    const wi = document.getElementById('wash-sale-input');
+    if (wi) wi.value = totalWash.toFixed(2);
+    logProcess(`🚿 Wash sale disallowances detected: -$${totalWash.toFixed(2)}`, 'ok');
+  }
+
   clearBtn.disabled = false;
   logProcess(`✅ Imported ${added - skipped} trades${skipped ? ` (${skipped} skipped)` : ''}`, 'ok');
   logProcess(`📊 Total stored: ${rawTrades.length} trades`, 'info');
@@ -4098,10 +4115,15 @@ async function loadFromDrive() {
     localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
     localStorage.setItem('tickeros_balances', JSON.stringify(rawBalances));
     localStorage.setItem('tickeros_income', JSON.stringify(rawIncome));
-    if (data.wash_sale) {
-      localStorage.setItem('tickeros_wash_sale', data.wash_sale);
+    // Restore wash sale — prefer value from income entries, fall back to stored value
+    const driveWashEntries = rawIncome.filter(i => i.type === 'wash_sale');
+    const driveWashVal = driveWashEntries.length
+      ? Math.abs(driveWashEntries.reduce((s, i) => s + Number(i.amount || 0), 0)).toFixed(2)
+      : (data.wash_sale || '');
+    if (driveWashVal) {
+      localStorage.setItem('tickeros_wash_sale', driveWashVal);
       const inp = document.getElementById('wash-sale-input');
-      if (inp) inp.value = data.wash_sale;
+      if (inp) inp.value = driveWashVal;
     }
     clearBtn.disabled = rawTrades.length === 0;
     renderDashboard();
