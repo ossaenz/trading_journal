@@ -2235,6 +2235,10 @@ function updateWashSaleDisplay(m) {
   const washAdj = Math.abs(parseFloat(localStorage.getItem('tickeros_wash_sale') || '0'));
 
   // Wash Sales display in stats strip (for reference only)
+  // Older code expected an element with id 'stat-wash-sale' which isn't present.
+  // Ensure the visible input is updated instead.
+  const washInput = document.getElementById('wash-sale-input');
+  if (washInput) { washInput.value = washAdj.toFixed(2); }
   const washStatEl = document.getElementById('stat-wash-sale');
   if (washStatEl) { washStatEl.textContent = '-$' + washAdj.toFixed(2); }
 
