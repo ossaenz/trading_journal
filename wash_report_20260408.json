@@ -1,0 +1,30 @@
+{
+  "total_disallowed": 15570.12,
+  "count": 4,
+  "items": [
+    {
+      "loss_date": "2026-03-03T00:00:00",
+      "repurchase_date": "2026-03-19T00:00:00",
+      "key": "STATE::STOCK",
+      "loss": 469.63
+    },
+    {
+      "loss_date": "2026-03-17T00:00:00",
+      "repurchase_date": "2026-02-23T00:00:00",
+      "key": "None::STOCK",
+      "loss": 150.27
+    },
+    {
+      "loss_date": "2026-03-24T00:00:00",
+      "repurchase_date": "2026-03-23T00:00:00",
+      "key": "HIGH::STOCK",
+      "loss": 14799.85
+    },
+    {
+      "loss_date": "2026-04-01T00:00:00",
+      "repurchase_date": "2026-03-30T00:00:00",
+      "key": "None::STOCK",
+      "loss": 150.37
+    }
+  ]
+}
