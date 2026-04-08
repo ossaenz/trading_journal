@@ -1085,9 +1085,14 @@ tbody td {
             <div class="stat-item"><span class="stat-label">This Month</span><span class="stat-val" id="stat-month-pnl">$0</span></div>
             <div class="stat-item"><span class="stat-label">Div Income</span><span class="stat-val pos" id="stat-income">$0</span></div>
             <div class="stat-item"><span class="stat-label">Unrealized (Open)</span><span class="stat-val accent" id="stat-unrealized">$0</span></div>
-            <div class="stat-item" title="Auto-computed wash sale disallowances (IRS 30-day rule)">
+            <div class="stat-item" title="Disallowed loss from Schwab Gain/Loss page — saved automatically">
               <span class="stat-label">Wash Sales</span>
-              <span class="stat-val neg" id="stat-wash-sale">$0.00</span>
+              <span class="stat-val" style="display:flex;align-items:center;gap:3px;">
+                <span style="color:var(--neg);font-size:11px;">-$</span>
+                <input id="wash-sale-input" type="number" min="0" step="0.01" placeholder="0.00"
+                  style="width:72px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--neg);font-size:12px;font-family:inherit;padding:0 2px;outline:none;"
+                  oninput="localStorage.setItem('tickeros_wash_sale',this.value);updateWashSaleDisplay()">
+              </span>
             </div>
             <div class="stat-item"><span class="stat-label">Adj Net P&L</span><span class="stat-val" id="stat-adj-pnl">—</span></div>
           </div>
@@ -1962,57 +1967,6 @@ function calcMetrics(trades) {
   };
 }
 
-/* ── Wash Sale Detection ──────────────────────────────────────────────────
-   IRS rule: sell stock at a loss, buy same stock within 30 days after →
-   loss disallowed proportional to shares repurchased.
-   We only track STOCK trades (options require lot-level data we don't have).
-──────────────────────────────────────────────────────────────────────── */
-function computeWashSales(trades) {
-  const W = 30 * 24 * 60 * 60 * 1000;
-
-  // Only stock trades, sorted chronologically
-  const stockTrades = trades
-    .filter(t => !t.isCloseMarker && (t.type || 'STOCK').toUpperCase() === 'STOCK')
-    .map(t => ({
-      sym: (t.symbol || '').toUpperCase(),
-      side: (t.side || '').toUpperCase(),
-      qty: Math.abs(Number(t.qty || 0)),
-      pnl: t.pnl,
-      ts: t.date ? new Date(t.date).getTime() : 0,
-    }))
-    .filter(t => t.sym && t.qty > 0 && t.ts > 0)
-    .sort((a, b) => a.ts - b.ts);
-
-  // Pool of future buys with remaining qty available to trigger wash sales
-  const futureBuys = stockTrades
-    .filter(t => t.side === 'BUY')
-    .map(t => ({ ...t, remaining: t.qty }));
-
-  let totalDisallowed = 0;
-
-  stockTrades.forEach(sale => {
-    if (sale.side !== 'SELL' || sale.pnl == null || sale.pnl >= 0) return;
-    const lossPerShare = Math.abs(sale.pnl) / sale.qty;
-    let sharesWashed = 0;
-    let saleRemaining = sale.qty;
-
-    // Match against buys that happen within 30 days AFTER this sale
-    for (const buy of futureBuys) {
-      if (saleRemaining <= 0) break;
-      if (buy.sym !== sale.sym || buy.remaining <= 0) continue;
-      const diff = buy.ts - sale.ts;
-      if (diff <= 0 || diff > W) continue;
-      const matched = Math.min(buy.remaining, saleRemaining);
-      buy.remaining -= matched;
-      saleRemaining -= matched;
-      sharesWashed += matched;
-    }
-
-    totalDisallowed += sharesWashed * lossPerShare;
-  });
-
-  return { totalDisallowed: +totalDisallowed.toFixed(2) };
-}
 
 function computeOpenCapitalMetrics(trades) {
   const queues = {};
@@ -2279,7 +2233,7 @@ function renderDashboard() {
 ═══════════════════════════════════════════════════════════════ */
 function updateWashSaleDisplay(m) {
   if (!m) { const trades = getFilteredTrades(); m = calcMetrics(trades); }
-  const washAdj = m.washSaleDisallowed || 0;
+  const washAdj = Math.abs(parseFloat(localStorage.getItem('tickeros_wash_sale') || '0'));
   const incomeForPnl = getFilteredIncome().reduce((s, inc) => s + Number(inc.amount || 0), 0);
   const totalWithIncome = m.pnl + incomeForPnl;
   const adjTotal = totalWithIncome - washAdj;
@@ -4219,6 +4173,8 @@ document.getElementById('deepdive-symbol')?.addEventListener('keydown', e => {
 });
 
 /* ═══════════════════════════ INIT ═══════════════════════════ */
+const _savedWash = localStorage.getItem('tickeros_wash_sale');
+if (_savedWash) { const _wi = document.getElementById('wash-sale-input'); if (_wi) _wi.value = _savedWash; }
 renderDashboard();
 </script>
 </body>
