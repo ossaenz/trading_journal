@@ -992,6 +992,11 @@ tbody td {
         <span class="status-text" id="data-status">No data loaded</span>
       </div>
       <div class="engine-text" id="trade-count-label">—</div>
+      <div id="drive-badge" onclick="document.querySelector('[data-tab=data]')?.click()" title="Google Drive sync — click to go to Data Center"
+        style="margin-top:8px;display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 8px;border-radius:6px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">
+        <span id="drive-badge-dot" style="width:8px;height:8px;border-radius:50%;background:var(--neg);flex-shrink:0;"></span>
+        <span id="drive-badge-text" style="font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;">Drive: not connected</span>
+      </div>
     </div>
   </aside>
 
@@ -3965,6 +3970,11 @@ let gdriveFileId = null;
 function driveStatus(msg, color) {
   const el = document.getElementById('drive-sync-status');
   if (el) { el.textContent = 'Drive: ' + msg; el.style.color = color || 'var(--text2)'; }
+  // Update sidebar badge
+  const dot = document.getElementById('drive-badge-dot');
+  const txt = document.getElementById('drive-badge-text');
+  if (dot) dot.style.background = color || 'var(--text2)';
+  if (txt) txt.textContent = 'Drive: ' + msg;
 }
 
 function gdriveSignIn() {
@@ -4201,6 +4211,32 @@ document.getElementById('deepdive-symbol')?.addEventListener('keydown', e => {
 const _savedWash = localStorage.getItem('tickeros_wash_sale');
 if (_savedWash) { const _wi = document.getElementById('wash-sale-input'); if (_wi) _wi.value = _savedWash; }
 renderDashboard();
+
+// Auto-save to Drive every 3 minutes when signed in
+setInterval(() => { if (gdriveToken) saveToDrive(); }, 3 * 60 * 1000);
+
+// Silent reconnect on page load — works if user previously granted access in this browser
+window.addEventListener('load', () => {
+  try {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GDRIVE_CLIENT_ID,
+      scope: GDRIVE_SCOPES,
+      prompt: '',  // no popup — silent if already consented
+      callback: async (resp) => {
+        if (resp.error || !resp.access_token) return; // silently fail
+        gdriveToken = resp.access_token;
+        document.getElementById('gdrive-signin-btn')?.classList.add('hidden');
+        document.getElementById('gdrive-sync-btn')?.classList.remove('hidden');
+        document.getElementById('gdrive-load-btn')?.classList.remove('hidden');
+        document.getElementById('gdrive-signout-btn')?.classList.remove('hidden');
+        document.getElementById('drive-not-connected-warn')?.classList.add('hidden');
+        driveStatus('reconnected', 'var(--pos)');
+        await loadFromDrive();
+      },
+    });
+    client.requestAccessToken();
+  } catch(e) { /* google SDK not loaded yet, ignore */ }
+});
 </script>
 </body>
 </html>
