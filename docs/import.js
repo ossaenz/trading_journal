@@ -422,6 +422,9 @@
   function computeMetrics(rows) {
     const bySymbol = {};
     const metrics = { realized:0, commissions:0, trades:0, closedTrades:0, winners:0, losers:0, positions: {}, _tradeResults: [] };
+    // wash sale tracking
+    const washLosses = []; // {date, key, loss}
+    const purchases = []; // {date, key, qty}
     let totalWinAmt = 0;
     let totalLossAmt = 0;
 
@@ -463,6 +466,11 @@
           metrics.losers += 1; totalLossAmt += pnl;
           st.losers += 1; st.totalLoss += pnl;
           if (pnl < st.biggestLoss) st.biggestLoss = pnl;
+          // record wash-sale candidate (loss amount positive)
+          try {
+            const key = (r.isOption ? `${r.symbol}::OPT::${r.optionType}::${r.strike}::${r.expiry}` : `${r.symbol}::STOCK`);
+            washLosses.push({ date: new Date(r.date), key, loss: Math.abs(pnl) });
+          } catch(e) {}
         }
       }
 
@@ -481,7 +489,11 @@
           if (Math.abs(lot.qty) < 0.0001) bucket.queue.shift();
         }
         // Remaining qty → open long position
-        if (qty > 0) bucket.queue.push({ qty, price, date: r.date, mult });
+        if (qty > 0) {
+          bucket.queue.push({ qty, price, date: r.date, mult });
+          // record purchase for wash-sale detection
+          try { purchases.push({ date: new Date(r.date), key: (r.isOption ? `${r.symbol}::OPT::${r.optionType}::${r.strike}::${r.expiry}` : `${r.symbol}::STOCK`), qty: Number(qty) }); } catch(e) {}
+        }
 
       } else if (qty < 0) {
         // SELL: first check if there are long entries to close (buy → sell pattern)
@@ -501,6 +513,28 @@
         if (remaining > 0) bucket.queue.unshift({ qty: -remaining, price, date: r.date, mult });
       }
     });
+
+    // After processing trades, compute wash-sale disallowed losses
+    metrics.washSale = 0;
+    metrics.washSaleItems = [];
+    try {
+      const MS = 1000 * 60 * 60 * 24 * 30; // 30 days in ms
+      washLosses.forEach(loss => {
+        // find any purchase of a substantially identical security within ±30 days of loss date
+        const found = purchases.find(p => {
+          if (p.key !== loss.key) return false;
+          const dt = Math.abs(new Date(p.date) - new Date(loss.date));
+          return dt <= MS;
+        });
+        if (found) {
+          metrics.washSale += Number(loss.loss || 0);
+          metrics.washSaleItems.push({ date: loss.date.toISOString().slice(0,10), key: loss.key, loss: Number(loss.loss || 0), repurchaseDate: found.date ? (new Date(found.date)).toISOString().slice(0,10) : null });
+        }
+      });
+      metrics.washSale = Number((metrics.washSale || 0).toFixed(2));
+      metrics.washCount = metrics.washSaleItems.length;
+    } catch(e) { console.warn('wash-sale compute err', e); }
+
 
     // Build positions with full per-ticker detail
     Object.keys(bySymbol).forEach(sym => {
@@ -546,6 +580,8 @@
     // Save to localStorage
     try {
         localStorage.setItem('onyx_metrics', JSON.stringify(metrics));
+      // also expose computed wash-sale to the UI input used by dashboard
+      try { localStorage.setItem('tickeros_wash_sale', String(metrics.washSale || 0)); } catch(e) {}
         if (rows) localStorage.setItem('onyx_rows', JSON.stringify(rows));
     } catch (e) {
         console.warn('Could not save to localStorage', e);
