@@ -3357,7 +3357,13 @@ function parseSchwabAccountStmt(content) {
 
     if (!INCLUDE.has(al)) return;
 
-    const rawSym = String(row['Symbol'] || '').trim();
+    let rawSym = String(row['Symbol'] || '').trim();
+    // If Symbol field is empty, try to extract a symbol-like token from Description
+    if (!rawSym) {
+      const descFallback = String(row['Description'] || '').trim();
+      const mSymFallback = descFallback.match(/\b([A-Z]{1,5})\b/);
+      if (mSymFallback) rawSym = mSymFallback[1];
+    }
     if (!rawSym) return;
 
     let symbol = rawSym, tradeType = 'STOCK', strike = null, expiry = null;
