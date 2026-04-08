@@ -1596,6 +1596,9 @@ tbody td {
             <button id="gdrive-load-btn" class="btn btn-outline hidden" onclick="loadFromDrive()" title="Load trades from Google Drive">📥 Load from Drive</button>
             <button id="gdrive-signout-btn" class="btn btn-outline hidden" onclick="gdriveSignOut()" style="font-size:11px;">Sign Out</button>
             <span id="drive-sync-status" style="font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;align-self:center;">Drive: not connected</span>
+            <div id="drive-not-connected-warn" class="hidden" style="width:100%;margin-top:6px;padding:8px 12px;background:rgba(255,171,64,0.12);border:1px solid var(--warn);border-radius:6px;color:var(--warn);font-size:12px;">
+              ⚠ Your data is saved locally but <strong>not synced to Google Drive</strong>. Sign in above so it's available on other devices.
+            </div>
             <select id="preset-select" class="input-field">
               <option value="auto">Auto-detect format</option>
               <option value="tos">thinkorswim</option>
@@ -3977,6 +3980,8 @@ function gdriveSignIn() {
       document.getElementById('gdrive-signout-btn').classList.remove('hidden');
       driveStatus('connected', 'var(--pos)');
       toast('Google Drive connected', 'ok');
+      const warn = document.getElementById('drive-not-connected-warn');
+      if (warn) warn.classList.add('hidden');
       await loadFromDrive();
     },
   });
@@ -4063,7 +4068,18 @@ async function loadFromDrive() {
   try {
     driveStatus('loading…', 'var(--warn)');
     const fileId = await gdriveFindFile();
-    if (!fileId) { driveStatus('no file yet', 'var(--text2)'); toast('No Drive file found — import a CSV to create one', 'info'); return; }
+    if (!fileId) {
+      // No Drive file yet — if we have local data, push it up automatically
+      if (rawTrades.length > 0) {
+        driveStatus('uploading local data…', 'var(--warn)');
+        await saveToDrive();
+        toast('No Drive file found — uploaded your local data to Drive', 'ok');
+      } else {
+        driveStatus('no file yet', 'var(--text2)');
+        toast('No Drive file found. Import your data then it will sync automatically.', 'info');
+      }
+      return;
+    }
     const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
       headers: { Authorization: 'Bearer ' + gdriveToken },
     });
@@ -4094,7 +4110,16 @@ async function loadFromDrive() {
 }
 
 // Auto-save to Drive after CSV import and restore
-function saveToServer() { saveToDrive(); }
+function saveToServer() {
+  if (!gdriveToken) {
+    // Not signed in — show persistent warning in Data Center
+    driveStatus('⚠ not synced — sign in to save', 'var(--warn)');
+    const warn = document.getElementById('drive-not-connected-warn');
+    if (warn) warn.classList.remove('hidden');
+    return;
+  }
+  saveToDrive();
+}
 
 /* ═══════════════════════════ EQUITY TIME FILTER ═══════════════════════════ */
 document.querySelectorAll('[data-equity]').forEach(btn => {
