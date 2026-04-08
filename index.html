@@ -3783,6 +3783,24 @@ function processData() {
   localStorage.setItem('tickeros_balances', JSON.stringify(rawBalances));
   localStorage.setItem('tickeros_income', JSON.stringify(rawIncome));
 
+  // Auto-compute wash-sale on app load if not provided by Schwab and trades exist
+  window.addEventListener('DOMContentLoaded', () => {
+    try {
+      const existing = Number(localStorage.getItem('tickeros_wash_sale') || '0');
+      if ((!existing || existing === 0) && Array.isArray(rawTrades) && rawTrades.length) {
+        if (typeof computeWashFromTrades === 'function') {
+          const res = computeWashFromTrades(rawTrades);
+          if (res && res.total && res.total > 0) {
+            localStorage.setItem('tickeros_wash_sale', String(res.total.toFixed(2)));
+            const wi = document.getElementById('wash-sale-input'); if (wi) wi.value = res.total.toFixed(2);
+          }
+        }
+      }
+    } catch (e) { console.warn('auto wash compute failed', e); }
+    // Ensure dashboard displays the wash value
+    try { if (typeof updateWashSaleDisplay === 'function') updateWashSaleDisplay(); } catch(e){}
+  });
+
   // Auto-extract wash sale disallowances from income entries (Schwab JSON includes these)
   const washSaleEntries = rawIncome.filter(i => i.type === 'wash_sale');
   if (washSaleEntries.length) {
