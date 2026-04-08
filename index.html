@@ -3789,6 +3789,18 @@ function processData() {
     logProcess(`🚿 Wash sale disallowances detected: -$${totalWash.toFixed(2)}`, 'ok');
   }
 
+  // If no explicit wash-sale income rows, attempt to compute disallowed loss via FIFO matching
+  if (!washSaleEntries.length) {
+    try {
+      const computed = computeWashFromTrades(rawTrades || []);
+      if (computed && computed.total > 0) {
+        localStorage.setItem('tickeros_wash_sale', String(computed.total.toFixed(2)));
+        const wi = document.getElementById('wash-sale-input'); if (wi) wi.value = computed.total.toFixed(2);
+        logProcess(`🚿 Computed wash-sale disallowances: -$${computed.total.toFixed(2)} (${computed.items.length} items)`, 'ok');
+      }
+    } catch(e) { console.warn('computeWashFromTrades failed', e); }
+  }
+
   clearBtn.disabled = false;
   logProcess(`✅ Imported ${added - skipped} trades${skipped ? ` (${skipped} skipped)` : ''}`, 'ok');
   logProcess(`📊 Total stored: ${rawTrades.length} trades`, 'info');
@@ -3823,6 +3835,71 @@ function logProcess(msg, type = '') {
   line.textContent = '› ' + msg + '\n';
   log.appendChild(line);
   log.scrollTop = log.scrollHeight;
+}
+
+// Compute wash-sale disallowances from trades (simple FIFO heuristic)
+function computeWashFromTrades(trades) {
+  const MS30 = 30; // days
+  // Build FIFO queues per security key
+  const queues = {}; // key -> [{qty, price, date, mult}]
+  const losses = [];
+  const purchases = [];
+
+  const sorted = (Array.isArray(trades) ? trades.slice() : []).sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
+  sorted.forEach(t => {
+    if (!t || !t.symbol) return;
+    const isOption = (t.type && String(t.type).toUpperCase() !== 'STOCK') || !!t.optionType;
+    const key = isOption ? `${t.symbol}::OPT::${String(t.type||t.optionType||'') }::${String(t.strike||'') }::${String(t.expiry||'')}` : `${t.symbol}::STOCK`;
+    if (!queues[key]) queues[key] = [];
+    const qty = Number(t.qty || 0);
+    const price = Number(t.price || 0);
+    const mult = isOption ? 100 : 1;
+    const dt = t.date ? new Date(t.date) : null;
+
+    if (qty > 0) {
+      // BUY: first close shorts
+      let rem = qty;
+      while (rem > 0 && queues[key].length && queues[key][0].qty < 0) {
+        const lot = queues[key][0];
+        const take = Math.min(rem, Math.abs(lot.qty));
+        const pnl = take * (lot.price - price) * (lot.mult || mult);
+        if (pnl < 0) losses.push({ date: dt, key, loss: Math.abs(pnl) });
+        lot.qty += take;
+        rem -= take;
+        if (Math.abs(lot.qty) < 1e-9) queues[key].shift();
+      }
+      if (rem > 0) {
+        queues[key].push({ qty: rem, price, date: dt, mult });
+        purchases.push({ date: dt, key, qty: rem });
+      }
+    } else if (qty < 0) {
+      // SELL: close longs
+      let rem = Math.abs(qty);
+      while (rem > 0 && queues[key].length && queues[key][0].qty > 0) {
+        const lot = queues[key][0];
+        const take = Math.min(rem, lot.qty);
+        const pnl = take * (price - lot.price) * (lot.mult || mult);
+        if (pnl < 0) losses.push({ date: dt, key, loss: Math.abs(pnl) });
+        lot.qty -= take;
+        rem -= take;
+        if (lot.qty <= 0) queues[key].shift();
+      }
+      if (rem > 0) {
+        // open short
+        queues[key].unshift({ qty: -rem, price, date: dt, mult });
+      }
+    }
+  });
+
+  // Match losses to repurchases within 30 days
+  const items = [];
+  losses.forEach(l => {
+    const found = purchases.find(p => p.key === l.key && p.date && l.date && Math.abs((p.date - l.date) / 86400000) <= MS30);
+    if (found) items.push({ lossDate: l.date ? l.date.toISOString().slice(0,10) : null, repurchaseDate: found.date ? found.date.toISOString().slice(0,10) : null, key: l.key, loss: Number(l.loss) });
+  });
+
+  const total = items.reduce((s,i) => s + Number(i.loss || 0), 0);
+  return { total: Number(total.toFixed(2)), items };
 }
 
 /* ═══════════════════════════ AI ANALYST ═══════════════════════════ */
