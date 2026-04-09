@@ -595,7 +595,7 @@ tbody td{padding:10px 14px;color:var(--text2);white-space:nowrap}
       </div>
       <div id="pos-panel-closed" class="hidden">
         <div class="table-wrap"><div class="table-controls"><h3>Closed Trades</h3><span id="pos-closed-count" class="text-sm text-muted text-mono"></span></div>
-          <div class="table-scroll"><table><thead><tr><th>Date</th><th>Symbol</th><th>Type</th><th>Side</th><th>Qty</th><th>Price</th><th>Strike</th><th>Expiry</th><th>Fees</th><th>Net P&amp;L</th><th>Hold Days</th><th>Tax</th></tr></thead><tbody id="pos-closed-tbody"></tbody></table></div></div>
+          <div class="table-scroll"><table><thead><tr><th>Opened</th><th>Closed</th><th>Symbol</th><th>Type</th><th>Qty</th><th>Open</th><th>Close</th><th>Fees</th><th>Net P&amp;L</th><th>Hold Days</th><th>Tax</th></tr></thead><tbody id="pos-closed-tbody"></tbody></table></div></div>
       </div>
       <div id="pos-panel-assigned" class="hidden">
         <div class="table-wrap"><div class="table-controls"><h3>Assignments &amp; Exercises</h3><span id="pos-assigned-count" class="text-sm text-muted text-mono"></span></div>
@@ -1331,6 +1331,82 @@ function calcDTE(expiry) {
   return Math.ceil((new Date(expiry+'T23:59:59')-new Date())/86400000);
 }
 
+function buildClosedOptionRoundTrips(trades) {
+  const queues = {};
+  const roundTrips = [];
+  const sorted = [...trades].sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')));
+
+  sorted.forEach(t => {
+    if (t.type === 'STOCK') return;
+    if (!t.side) return;
+
+    const key = t.rawSymbol || t.symbol || 'UNKNOWN';
+    const side = String(t.side).toUpperCase();
+    const qty = Math.abs(Number(t.qty || 0));
+    const price = Math.abs(Number(t.price || 0));
+    const mult = Number(t.mult || 100) || 100;
+    const commission = Math.abs(Number(t.commission || 0));
+    if (!qty) return;
+
+    if (!queues[key]) queues[key] = [];
+    let remaining = qty;
+    const queue = queues[key];
+    const commPerUnit = commission / qty;
+
+    while (remaining > 0.0001 && queue.length && queue[0].side !== side) {
+      const lot = queue[0];
+      const take = Math.min(remaining, lot.qty);
+      const openNotional = take * lot.price * lot.mult;
+      const closeNotional = take * price * mult;
+      const fees = take * ((lot.commPerUnit || 0) + commPerUnit);
+
+      const netPnl = lot.side === 'SELL'
+        ? openNotional - closeNotional - fees
+        : closeNotional - openNotional - fees;
+
+      const openDate = String(lot.date || '').slice(0,10);
+      const closeDate = String(t.date || '').slice(0,10);
+      const holdDays = (openDate && closeDate)
+        ? Math.max(0, Math.round((new Date(closeDate) - new Date(openDate)) / 86400000))
+        : 0;
+
+      roundTrips.push({
+        symbol: t.symbol || lot.symbol || '—',
+        type: t.type || lot.type || '—',
+        qty: +take.toFixed(4),
+        openDate,
+        closeDate,
+        openSide: lot.side,
+        closeSide: side,
+        openPrice: +lot.price.toFixed(4),
+        closePrice: +price.toFixed(4),
+        fees: +fees.toFixed(2),
+        netPnl: +netPnl.toFixed(2),
+        holdDays,
+      });
+
+      lot.qty -= take;
+      remaining -= take;
+      if (lot.qty <= 0.0001) queue.shift();
+    }
+
+    if (remaining > 0.0001) {
+      queue.push({
+        side,
+        qty: remaining,
+        date: String(t.date || '').slice(0,10),
+        symbol: t.symbol,
+        type: t.type,
+        price,
+        mult,
+        commPerUnit,
+      });
+    }
+  });
+
+  return roundTrips;
+}
+
 function renderPositionsTab() {
   const trades = getFilteredTrades();
   const m = calcMetrics(trades);
@@ -1368,18 +1444,21 @@ function renderPositionsTab() {
     }
   }
 
-  const closed=trades.filter(t=>t.pnl!=null).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const closed=buildClosedOptionRoundTrips(trades).slice().sort((a,b)=>String(b.closeDate||'').localeCompare(String(a.closeDate||'')));
   const closedTbody=document.getElementById('pos-closed-tbody');
-  document.getElementById('pos-closed-count').textContent=`${closed.length} trade${closed.length!==1?'s':''}`;
+  document.getElementById('pos-closed-count').textContent=`${closed.length} round-trip${closed.length!==1?'s':''}`;
   if (closedTbody) {
-    if (!closed.length){closedTbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:24px;">No closed trades</td></tr>';}
+    if (!closed.length){closedTbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:24px;">No closed option round-trips</td></tr>';}
     else {
       closedTbody.innerHTML=closed.map(t=>{
-        const pnl=Number(t.pnl||0);
+        const pnl=Number(t.netPnl||0);
         const pc=pnl>0?'var(--pos)':pnl<0?'var(--neg)':'var(--text2)';
-        const holdDays=Number(t.holdDays||t.daysHeld||0);
+        const holdDays=Number(t.holdDays||0);
         const taxClass=holdDays>=365?'<span style="color:var(--pos);">LT</span>':'<span style="color:var(--warn);">ST</span>';
-        return `<tr><td>${t.date||'—'}</td><td><strong>${t.symbol||'—'}</strong></td><td style="color:${t.type==='PUT'?'var(--neg)':'var(--pos)'}">${t.type||'—'}</td><td>${t.side||'—'}</td><td>${t.qty||'—'}</td><td>$${Number(t.price||0).toFixed(2)}</td><td>${t.strike?'$'+Number(t.strike).toFixed(2):'—'}</td><td>${t.expiry||'—'}</td><td style="color:var(--neg);">$${Number(t.commission||0).toFixed(2)}</td><td style="color:${pc};font-weight:600;">${pnl>=0?'+':''}$${pnl.toFixed(2)}</td><td>${holdDays>0?holdDays+'d':'—'}</td><td>${taxClass}</td></tr>`;
+        const typeColor=t.type==='PUT'?'var(--neg)':t.type==='CALL'?'var(--pos)':'var(--text)';
+        const openLabel=t.openSide==='SELL'?'STO':'BTO';
+        const closeLabel=t.closeSide==='BUY'?'BTC':'STC';
+        return `<tr><td>${t.openDate||'—'} <span class="td-muted">${openLabel}</span></td><td>${t.closeDate||'—'} <span class="td-muted">${closeLabel}</span></td><td><strong>${t.symbol||'—'}</strong></td><td style="color:${typeColor}">${t.type||'—'}</td><td>${t.qty||'—'}</td><td>$${Number(t.openPrice||0).toFixed(2)}</td><td>$${Number(t.closePrice||0).toFixed(2)}</td><td style="color:var(--neg);">$${Number(t.fees||0).toFixed(2)}</td><td style="color:${pc};font-weight:600;">${pnl>=0?'+':''}$${pnl.toFixed(2)}</td><td>${holdDays>0?holdDays+'d':'—'}</td><td>${taxClass}</td></tr>`;
       }).join('');
     }
   }
