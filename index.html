@@ -2451,11 +2451,51 @@ async function gdriveFindFile() {
   return gdriveFileId;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// DATA SANITIZATION — Remove sensitive data before uploading to Drive
+// ═══════════════════════════════════════════════════════════════════
+function sanitizeForUpload(trades, balances, income) {
+  // Whitelist of safe fields to keep from trades
+  const safeTradeFields = ['date', 'symbol', 'type', 'rawSymbol', 'side', 'qty', 'price', 'commission', 'pnl', 'strike', 'expiry', 'mult', 'groupId', 'action', 'isCloseMarker', 'fromAssignment', 'assignedFromOption', 'baseSym'];
+  
+  // Clean trades: keep only whitelisted fields
+  const cleanTrades = trades.map(t => {
+    const clean = {};
+    safeTradeFields.forEach(field => {
+      if (field in t) clean[field] = t[field];
+    });
+    // Remove any rawSymbol that might contain account info
+    if (clean.rawSymbol && /\d{6,}|account|acct|[A-Z]{4}\d{4}/.test(clean.rawSymbol)) {
+      delete clean.rawSymbol;
+    }
+    return clean;
+  });
+  
+  // Sanitize balances: keep only date and amount, remove account identifiers
+  const cleanBalances = balances.map(b => ({
+    date: b.date,
+    amount: b.amount
+  })).filter(b => b.date && typeof b.amount === 'number');
+  
+  // Sanitize income: keep only essential fields
+  const cleanIncome = income.map(i => ({
+    date: i.date,
+    symbol: i.symbol,
+    type: i.type,
+    amount: i.amount,
+    action: i.action
+  })).filter(i => i.date && i.symbol);
+  
+  return { trades: cleanTrades, balances: cleanBalances, income: cleanIncome };
+}
+
 async function saveToDrive() {
   if (!gdriveToken) { toast('Sign in to Google Drive first', 'err'); return; }
   try {
     driveStatus('saving…', 'var(--warn)');
-    const content = JSON.stringify({ updated_at: new Date().toISOString(), trades: rawTrades, balances: rawBalances });
+    // Sanitize data before uploading — removes sensitive fields
+    const { trades: cleanTrades, balances: cleanBalances, income: cleanIncome } = sanitizeForUpload(rawTrades, rawBalances, rawIncome);
+    const content = JSON.stringify({ updated_at: new Date().toISOString(), trades: cleanTrades, balances: cleanBalances, income: cleanIncome });
     const blob = new Blob([content], { type: 'application/json' });
     const fileId = await gdriveFindFile();
     if (fileId) {
@@ -2481,7 +2521,7 @@ async function saveToDrive() {
     }
     const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     driveStatus(`saved ${ts}`, 'var(--pos)');
-    toast(`Saved ${rawTrades.length} trades to Google Drive`, 'ok');
+    toast(`Saved ${rawTrades.length} trades to Google Drive (sanitized)`, 'ok');
   } catch (err) {
     driveStatus('save failed', 'var(--neg)');
     toast('Drive save failed: ' + err.message, 'err');
@@ -2501,8 +2541,10 @@ async function loadFromDrive() {
     const data = await r.json();
     rawTrades = sanitizeStoredTrades(Array.isArray(data.trades) ? data.trades : []);
     rawBalances = Array.isArray(data.balances) ? data.balances : [];
+    rawIncome = Array.isArray(data.income) ? data.income : [];
     localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
     localStorage.setItem('tickeros_balances', JSON.stringify(rawBalances));
+    localStorage.setItem('tickeros_income', JSON.stringify(rawIncome));
     document.getElementById('clear-btn').disabled = rawTrades.length === 0;
     renderDashboard();
     showTab('dashboard');
