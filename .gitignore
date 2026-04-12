@@ -5,6 +5,21 @@ client_secret*.json
 .env
 .env.*
 
+# Sensitive account & trading data
+*.csv
+docs/data/*.json
+docs/*AccountStatement*
+docs/*Position*
+docs/*Income*
+docs/*Schwab*
+trades.json
+.local/
+
+# Downloads & temp
+Downloads/
+*.tmp
+*.bak
+
 # Node
 node_modules/
 
