@@ -250,9 +250,38 @@ tbody td{padding:10px 14px;color:var(--text2);white-space:nowrap}
 .wash-detail-list{list-style:none;font-family:'JetBrains Mono',monospace;font-size:11px}
 .wash-detail-list li{padding:5px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
 .wash-detail-list li:last-child{border-bottom:none}
+
+/* STORAGE MODE MODAL */
+.storage-mode-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(8,11,16,0.95);display:none;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(2px);animation:fadeIn .3s ease}
+.storage-mode-overlay.active{display:flex}
+.storage-mode-dialog{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:48px 42px;max-width:480px;text-align:center;box-shadow:0 20px 80px rgba(0,0,0,0.6);animation:slideUp .4s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.storage-mode-title{font-family:'DM Serif Display',serif;font-size:32px;color:#fff;margin-bottom:12px;letter-spacing:-.5px}
+.storage-mode-desc{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:36px}
+.storage-mode-buttons{display:flex;gap:14px;flex-direction:column}
+.storage-mode-btn{padding:14px 24px;border-radius:10px;font-size:14px;font-weight:600;border:2px solid transparent;cursor:pointer;transition:all .2s;letter-spacing:.3px;text-transform:uppercase}
+.storage-mode-btn-gdrive{background:rgba(0,212,255,0.1);border-color:rgba(0,212,255,0.3);color:var(--accent)}
+.storage-mode-btn-gdrive:hover{background:rgba(0,212,255,0.15);border-color:rgba(0,212,255,0.5);box-shadow:0 0 20px rgba(0,212,255,0.2)}
+.storage-mode-btn-local{background:rgba(255,171,64,0.1);border-color:rgba(255,171,64,0.3);color:var(--warn)}
+.storage-mode-btn-local:hover{background:rgba(255,171,64,0.15);border-color:rgba(255,171,64,0.5);box-shadow:0 0 20px rgba(255,171,64,0.2)}
+.storage-mode-icon{font-size:28px;margin-bottom:14px}
 </style>
 </head>
 <body>
+<!-- STORAGE MODE SELECTOR MODAL -->
+<div class="storage-mode-overlay" id="storage-mode-modal">
+  <div class="storage-mode-dialog">
+    <div class="storage-mode-icon">💾</div>
+    <h2 class="storage-mode-title">Choose Storage</h2>
+    <p class="storage-mode-desc">Select how you want your trading data stored. You can always change this later in Settings.</p>
+    <div class="storage-mode-buttons">
+      <button class="storage-mode-btn storage-mode-btn-gdrive" onclick="selectStorageMode('gdrive')">☁ Use Google Drive</button>
+      <button class="storage-mode-btn storage-mode-btn-local" onclick="selectStorageMode('local')">💻 Use Local Storage</button>
+    </div>
+  </div>
+</div>
+
 <div class="app">
 
 <!-- SIDEBAR -->
@@ -779,10 +808,37 @@ function sanitizeStoredTrades(trades) {
 let rawTrades = sanitizeStoredTrades(JSON.parse(localStorage.getItem('tickeros_trades')||'[]'));
 let rawBalances = JSON.parse(localStorage.getItem('tickeros_balances')||'[]');
 let rawIncome = JSON.parse(localStorage.getItem('tickeros_income')||'[]');
+let gdriveEnabled = false; // Set to true when signed in to Google Drive
+let storageMode = sessionStorage.getItem('tickeros_storage_mode') || null; // 'gdrive' or 'local'
 let washSaleData = { total: 0, items: [] };  // computed fresh each time
 let parsedFiles = [];
 let charts = {};
 let selectedTicker = '';
+
+// ═══════════════════════════════════════════════════════════════════
+// STORAGE MODE INITIALIZATION
+// ═══════════════════════════════════════════════════════════════════
+function initStorageMode() {
+  if (!storageMode) {
+    // First time: show modal to choose storage mode
+    document.getElementById('storage-mode-modal').classList.add('active');
+  }
+}
+
+function selectStorageMode(mode) {
+  storageMode = mode;
+  sessionStorage.setItem('tickeros_storage_mode', mode);
+  document.getElementById('storage-mode-modal').classList.remove('active');
+  
+  if (mode === 'gdrive') {
+    toast('Google Drive mode selected - click ☁ to connect', 'info');
+  } else if (mode === 'local') {
+    toast('Local Storage mode selected - data stored on this computer only', 'info');
+  }
+  
+  renderDashboard();
+  showTab('dashboard');
+}
 
 // ═══════════════════════════════════════════════════════════════════
 //  WASH SALE COMPUTATION — the core fix
@@ -1091,6 +1147,9 @@ const pageMeta = {
 document.querySelectorAll('.nav-item').forEach(el => {
   el.addEventListener('click', e => { e.preventDefault(); showTab(el.dataset.tab); });
 });
+
+// Initialize storage mode modal if not selected
+initStorageMode();
 
 function showTab(tab) {
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.tab===tab));
@@ -2120,6 +2179,9 @@ function processData() {
   localStorage.setItem('tickeros_balances',JSON.stringify(rawBalances));
   localStorage.setItem('tickeros_income',JSON.stringify(rawIncome));
 
+  // Auto-save to Google Drive if authenticated
+  if (gdriveEnabled) saveToDrive();
+
   clearBtn.disabled=false;
   logProcess(`✅ Stored ${rawTrades.length} trades · Wash sales: -$${washSaleData.total.toFixed(2)}`,'ok');
   if (rawIncome.length)logProcess(`💵 ${rawIncome.length} income events stored`,'info');
@@ -2131,6 +2193,10 @@ clearBtn.addEventListener('click',()=>{
   if (!confirm('Clear all stored trade data?'))return;
   rawTrades=[];rawBalances=[];rawIncome=[];washSaleData={total:0,items:[]};
   localStorage.removeItem('tickeros_trades');localStorage.removeItem('tickeros_balances');localStorage.removeItem('tickeros_income');
+  
+  // Clear from Google Drive if authenticated
+  if (gdriveEnabled) saveToDrive();
+  
   clearBtn.disabled=true;processBtn.disabled=true;
   logProcess('🗑️ Data cleared','warn');
   renderDashboard();
@@ -2330,12 +2396,18 @@ function gdriveSignIn() {
     callback: async (resp) => {
       if (resp.error) { toast('Google sign-in failed: ' + resp.error, 'err'); return; }
       gdriveToken = resp.access_token;
+      gdriveEnabled = true;
+      // Set storage mode to Google Drive if not already selected
+      if (!storageMode) {
+        storageMode = 'gdrive';
+        sessionStorage.setItem('tickeros_storage_mode', 'gdrive');
+      }
       document.getElementById('gdrive-signin-btn').classList.add('hidden');
       document.getElementById('gdrive-sync-btn').classList.remove('hidden');
       document.getElementById('gdrive-load-btn').classList.remove('hidden');
       document.getElementById('gdrive-signout-btn').classList.remove('hidden');
       driveStatus('connected', 'var(--pos)');
-      toast('Google Drive connected', 'ok');
+      toast('Google Drive connected - all data will sync automatically', 'ok');
       await loadFromDrive();
     },
   });
@@ -2345,6 +2417,7 @@ function gdriveSignIn() {
 function gdriveSignOut() {
   if (gdriveToken) google.accounts.oauth2.revoke(gdriveToken, () => {});
   gdriveToken = null;
+  gdriveEnabled = false;
   gdriveFileId = null;
   document.getElementById('gdrive-signin-btn').classList.remove('hidden');
   document.getElementById('gdrive-sync-btn').classList.add('hidden');
@@ -2598,6 +2671,9 @@ if (document.getElementById('schwab-income-file')) {
         
         toast(`Imported ${income.length} income transactions ($${totalIncome.toFixed(2)})`, 'ok');
         renderDashboard();
+        
+        // Auto-save to Google Drive if enabled
+        if (gdriveEnabled) saveToDrive();
       } catch (err) {
         toast('Failed to parse income CSV: ' + err.message, 'err');
       }
@@ -2633,6 +2709,9 @@ if (document.getElementById('schwab-positions-file')) {
         
         toast(`Imported cost basis for ${keys.length} symbols, updated ${updated} trades`, 'ok');
         renderDashboard();
+        
+        // Auto-save to Google Drive if enabled
+        if (gdriveEnabled) saveToDrive();
       } catch (err) {
         toast('Failed to parse positions CSV: ' + err.message, 'err');
       }
