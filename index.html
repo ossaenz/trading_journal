@@ -8,6 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
 <style>
 :root {
   --bg: #080b10; --bg2: #0d1117; --bg3: #111820;
@@ -312,7 +313,7 @@ tbody td{padding:10px 14px;color:var(--text2);white-space:nowrap}
       <span class="status-text" id="data-status">No data loaded</span>
     </div>
     <div class="engine-text" id="trade-count-label">—</div>
-    <div class="drive-badge" onclick="showTab('data')">
+    <div class="drive-badge" onclick="gdriveSignIn()" style="cursor:pointer;">
       <span class="drive-badge-dot" id="drive-badge-dot"></span>
       <span class="drive-badge-text" id="drive-badge-text">Drive: not connected</span>
     </div>
@@ -536,6 +537,55 @@ tbody td{padding:10px 14px;color:var(--text2);white-space:nowrap}
           <div class="kpi kpi-neg"><div class="kpi-label">Total Est. Tax</div><div class="kpi-val neg" id="tax-total-due">$0.00</div></div>
         </div>
       </div>
+
+      <!-- ── Breakdown by income type ── -->
+      <div class="table-wrap mb2">
+        <div class="table-controls"><h3 style="font-size:13px;color:var(--text2);">Breakdown by Income Type</h3></div>
+        <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);margin-top:4px;">
+          <div class="kpi">
+            <div class="kpi-label">ETF/Equity Options P&L</div>
+            <div class="kpi-val" id="tax-opt-pnl">$0.00</div>
+            <div class="kpi-sub">SPY, QQQ, TSLA … options</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Section 1256 Options P&L</div>
+            <div class="kpi-val" id="tax-1256-pnl">$0.00</div>
+            <div class="kpi-sub">SPX, NDX, RUT, VIX …</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Stock Gains P&L</div>
+            <div class="kpi-val" id="tax-stock-pnl">$0.00</div>
+            <div class="kpi-sub" id="tax-stock-pnl-sub">ST / LT by hold period</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Dividend Income</div>
+            <div class="kpi-val" id="tax-div-total">$0.00</div>
+            <div class="kpi-sub" id="tax-div-sub">qual / non-qual</div>
+          </div>
+        </div>
+        <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);margin-top:8px;">
+          <div class="kpi kpi-neg">
+            <div class="kpi-label">Est. Tax — Options</div>
+            <div class="kpi-val neg" id="tax-opt-due">$0.00</div>
+            <div class="kpi-sub" id="tax-opt-rate-note">@ 37% ST (equity options)</div>
+          </div>
+          <div class="kpi kpi-neg">
+            <div class="kpi-label">Est. Tax — Sec. 1256</div>
+            <div class="kpi-val neg" id="tax-1256-due">$0.00</div>
+            <div class="kpi-sub" id="tax-1256-rate-note">60% LTCG / 40% STCG blended</div>
+          </div>
+          <div class="kpi kpi-neg">
+            <div class="kpi-label">Est. Tax — Stock Gains</div>
+            <div class="kpi-val neg" id="tax-stock-due">$0.00</div>
+            <div class="kpi-sub" id="tax-stock-rate-note">ST + LT blended</div>
+          </div>
+          <div class="kpi kpi-neg">
+            <div class="kpi-label">Est. Tax — Dividends</div>
+            <div class="kpi-val neg" id="tax-div-due">$0.00</div>
+            <div class="kpi-sub" id="tax-div-rate-note">qual @ LT / non-qual @ ST</div>
+          </div>
+        </div>
+      </div>
       <div class="chart-grid" style="grid-template-columns:2fr 1fr;gap:14px;margin-bottom:16px;">
         <div class="chart-panel"><div class="chart-header"><span class="chart-title">Monthly Taxable P&L</span></div><div class="chart-canvas-wrap h220"><canvas id="taxMonthlyChart"></canvas></div></div>
         <div class="chart-panel"><div class="chart-header"><span class="chart-title">ST vs LT Mix</span></div><div class="chart-canvas-wrap h220"><canvas id="taxMixChart"></canvas></div></div>
@@ -630,10 +680,15 @@ tbody td{padding:10px 14px;color:var(--text2);white-space:nowrap}
           <button id="clear-btn" class="btn btn-outline" disabled>Clear All</button>
           <button class="btn btn-outline" onclick="exportData()">⬇ Backup JSON</button>
           <button class="btn btn-outline" onclick="importFromJSON()">⬆ Restore Backup</button>
+          <button id="gdrive-signin-btn" class="btn btn-outline" onclick="gdriveSignIn()" title="Sign in with Google to sync data across devices">☁ Sign in with Google</button>
+          <button id="gdrive-sync-btn" class="btn btn-outline hidden" onclick="saveToDrive()" title="Save trades to Google Drive">💾 Save to Drive</button>
+          <button id="gdrive-load-btn" class="btn btn-outline hidden" onclick="loadFromDrive()" title="Load trades from Google Drive">📥 Load from Drive</button>
+          <button id="gdrive-signout-btn" class="btn btn-outline hidden" onclick="gdriveSignOut()" style="font-size:11px;">Sign Out</button>
           <label class="flex items-center gap1" style="font-size:12px;color:var(--text2);cursor:pointer;">
             <input type="checkbox" id="skip-dupes"> Append &amp; merge
           </label>
         </div>
+        <div id="drive-sync-status" style="font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-bottom:12px;">Drive: not connected</div>
         <div id="mapping-section" class="chart-panel hidden mb2">
           <div class="chart-header"><span class="chart-title">Column Mapping</span></div>
           <div class="mapping-grid">
@@ -1098,6 +1153,7 @@ function calcMetrics(trades) {
     pnl: Number(t.pnl||0),
     holdDays: Number(t.holdDays||t.daysHeld||0),
     taxClass: Number(t.holdDays||t.daysHeld||0) >= 365 ? 'LT' : 'ST',
+    type: t.type||'STOCK',
   }));
 
   const firstDate = dates[0]||null;
@@ -1561,6 +1617,60 @@ function renderTaxTab() {
   el('tax-lt-due','$'+ltDue.toFixed(2));
   el('tax-total-due','$'+(stDue+ltDue).toFixed(2));
 
+  // ── Breakdown by income type ──────────────────────────────────────
+  const blendedRate = (0.6*ltRate)+(0.4*stRate);
+  const fmt2 = v => `${v>=0?'+':'-'}$${Math.abs(v).toFixed(2)}`;
+
+  // ETF/Equity options (CALL or PUT, NOT cash-settled index options)
+  const optLots = m.taxLots.filter(x=>(x.type==='CALL'||x.type==='PUT')&&!SECTION_1256_SYMBOLS.has(x.symbol));
+  const optPnl  = optLots.reduce((s,x)=>s+x.pnl,0);
+  const optDue  = Math.max(0,optPnl)*stRate;
+
+  // Section 1256 options (cash-settled index options: SPX, NDX, RUT, VIX …)
+  const sec1256Lots = m.taxLots.filter(x=>(x.type==='CALL'||x.type==='PUT')&&SECTION_1256_SYMBOLS.has(x.symbol));
+  const sec1256Pnl  = sec1256Lots.reduce((s,x)=>s+x.pnl,0);
+  const sec1256Due  = Math.max(0,sec1256Pnl)*blendedRate;
+
+  // Stock gains (STOCK type, split into ST / LT by hold period)
+  const stockLots   = m.taxLots.filter(x=>x.type==='STOCK');
+  const stockStPnl  = stockLots.filter(x=>x.taxClass==='ST').reduce((s,x)=>s+x.pnl,0);
+  const stockLtPnl  = stockLots.filter(x=>x.taxClass==='LT').reduce((s,x)=>s+x.pnl,0);
+  const stockPnl    = stockStPnl+stockLtPnl;
+  const stockDue    = Math.max(0,stockStPnl)*stRate+Math.max(0,stockLtPnl)*ltRate;
+
+  // Dividends: qualified vs non-qualified (from income data, not trades)
+  const filteredIncome = getFilteredIncome();
+  let qualDivInc=0, nonQualDivInc=0;
+  filteredIncome.filter(i=>i.type==='dividend').forEach(i=>{
+    const sym = (i.symbol||'').toUpperCase().trim().split(' ')[0];
+    const act = (i.action||'').toLowerCase();
+    // Force non-qualified for known YieldMax/covered-call ETFs, or if Schwab action says non-qual
+    const isNonQual = NON_QUAL_DIV_SYMBOLS.has(sym)||act.includes('non-qual');
+    // Qualified if Schwab action is explicitly 'qualified dividend' and not overridden above
+    const isQual    = !isNonQual&&(act.includes('qualified')||act.includes('qual'));
+    if (isNonQual)      nonQualDivInc+=Number(i.amount||0);
+    else if (isQual)    qualDivInc   +=Number(i.amount||0);
+    else                nonQualDivInc+=Number(i.amount||0); // cash dividend / unknown → conservative (ordinary income)
+  });
+  const divTotal = qualDivInc+nonQualDivInc;
+  const divDue   = Math.max(0,qualDivInc)*ltRate+Math.max(0,nonQualDivInc)*stRate;
+
+  // Populate breakdown tiles
+  el('tax-opt-pnl',   fmt2(optPnl));     styleSign('tax-opt-pnl',optPnl);
+  el('tax-1256-pnl',  fmt2(sec1256Pnl)); styleSign('tax-1256-pnl',sec1256Pnl);
+  el('tax-stock-pnl', fmt2(stockPnl));   styleSign('tax-stock-pnl',stockPnl);
+  el('tax-div-total', '+$'+divTotal.toFixed(2));
+  el('tax-opt-due',   '$'+optDue.toFixed(2));
+  el('tax-1256-due',  '$'+sec1256Due.toFixed(2));
+  el('tax-stock-due', '$'+stockDue.toFixed(2));
+  el('tax-div-due',   '$'+divDue.toFixed(2));
+  el('tax-opt-rate-note',   `@ ${(stRate*100).toFixed(0)}% ST (equity options)`);
+  el('tax-1256-rate-note',  `60% LT/${(ltRate*100).toFixed(0)}% + 40% ST/${(stRate*100).toFixed(0)}% = ${(blendedRate*100).toFixed(1)}%`);
+  el('tax-stock-rate-note', `ST ${(stRate*100).toFixed(0)}% / LT ${(ltRate*100).toFixed(0)}%`);
+  el('tax-div-sub',         `qual $${qualDivInc.toFixed(2)} / non-qual $${nonQualDivInc.toFixed(2)}`);
+  el('tax-stock-pnl-sub',   `ST $${stockStPnl>=0?'+':''}${stockStPnl.toFixed(2)} / LT $${stockLtPnl>=0?'+':''}${stockLtPnl.toFixed(2)}`);
+  // ─────────────────────────────────────────────────────────────────
+
   const monthly={};
   m.taxLots.forEach(x=>{const k=String(x.date||'').slice(0,7);monthly[k]=(monthly[k]||0)+x.pnl;});
   const months=Object.keys(monthly).sort();
@@ -1587,8 +1697,20 @@ function renderTaxTab() {
 function exportTaxCSV() {
   const trades=getFilteredTrades();
   const m=calcMetrics(trades);
-  const rows=['date,symbol,pnl,tax_class,hold_days'];
-  m.taxLots.forEach(x=>rows.push(`${x.date},${x.symbol},${x.pnl.toFixed(2)},${x.taxClass},${x.holdDays}`));
+  const rows=['date,symbol,pnl,tax_class,hold_days,income_type'];
+  m.taxLots.forEach(x=>{
+    const incomeType=(x.type==='CALL'||x.type==='PUT')
+      ?(SECTION_1256_SYMBOLS.has(x.symbol)?'sec1256_option':'equity_option')
+      :'stock_gain';
+    rows.push(`${x.date},${x.symbol},${x.pnl.toFixed(2)},${x.taxClass},${x.holdDays},${incomeType}`);
+  });
+  getFilteredIncome().filter(i=>i.type==='dividend').forEach(i=>{
+    const sym=(i.symbol||'').toUpperCase().trim().split(' ')[0];
+    const act=(i.action||'').toLowerCase();
+    const isNonQual=NON_QUAL_DIV_SYMBOLS.has(sym)||act.includes('non-qual');
+    const qual=isNonQual?'non_qualified_dividend':(act.includes('qual')?'qualified_dividend':'cash_dividend');
+    rows.push(`${i.date},${i.symbol||''},${Number(i.amount||0).toFixed(2)},DIV,0,${qual}`);
+  });
   const blob=new Blob([rows.join('\n')],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tickeros_tax_lots.csv';a.click();
   toast('Tax CSV exported','ok');
@@ -1605,6 +1727,10 @@ const INCOME_ACTION_MAP={
   'credit interest':'interest','margin interest':'interest',
   'adr mgmt fee':'fee','funds received':'other',
 };
+// Cash-settled index options → Section 1256 (60% LTCG / 40% STCG blended rate)
+const SECTION_1256_SYMBOLS = new Set(['SPX','NDX','RUT','VIX','XSP','MRUT','MNX','DJX']);
+// YieldMax / covered-call ETFs that pay ordinary income (not qualified dividends)
+const NON_QUAL_DIV_SYMBOLS = new Set(['TSLY','CONY','ULTY','NVDY','AMZY','GOOGY','MSFO','JPMO','DIVO','QQQY','SPYI','JEPI','JEPQ']);
 const TRADE_ACTIONS=new Set(['buy','sell','buy to open','sell to open','buy to close','sell to close']);
 const LIFECYCLE_ACTIONS=new Set(['assigned','exercise','exercised','expired']);
 
@@ -2165,6 +2291,139 @@ document.getElementById('ticker-search')?.addEventListener('input',function(){
   }
   renderDashboard();
 })();
+
+/* ═══════════════════════════ GOOGLE DRIVE SYNC ═══════════════════════════ */
+const GDRIVE_CLIENT_ID = '206086068161-os538lqofudoegdmt56up5dnpjsgi3sq.apps.googleusercontent.com';
+const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file';
+const GDRIVE_FILE_NAME = 'tickeros_trades.json';
+let gdriveToken = null;
+let gdriveFileId = null;
+
+function driveStatus(msg, color) {
+  const el = document.getElementById('drive-sync-status');
+  if (el) { el.textContent = 'Drive: ' + msg; el.style.color = color || 'var(--text2)'; }
+}
+
+function gdriveSignIn() {
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GDRIVE_CLIENT_ID,
+    scope: GDRIVE_SCOPES,
+    callback: async (resp) => {
+      if (resp.error) { toast('Google sign-in failed: ' + resp.error, 'err'); return; }
+      gdriveToken = resp.access_token;
+      document.getElementById('gdrive-signin-btn').classList.add('hidden');
+      document.getElementById('gdrive-sync-btn').classList.remove('hidden');
+      document.getElementById('gdrive-load-btn').classList.remove('hidden');
+      document.getElementById('gdrive-signout-btn').classList.remove('hidden');
+      driveStatus('connected', 'var(--pos)');
+      toast('Google Drive connected', 'ok');
+      await loadFromDrive();
+    },
+  });
+  client.requestAccessToken();
+}
+
+function gdriveSignOut() {
+  if (gdriveToken) google.accounts.oauth2.revoke(gdriveToken, () => {});
+  gdriveToken = null;
+  gdriveFileId = null;
+  document.getElementById('gdrive-signin-btn').classList.remove('hidden');
+  document.getElementById('gdrive-sync-btn').classList.add('hidden');
+  document.getElementById('gdrive-load-btn').classList.add('hidden');
+  document.getElementById('gdrive-signout-btn').classList.add('hidden');
+  driveStatus('not connected');
+  toast('Signed out of Google Drive', 'info');
+}
+
+async function gdriveRequest(method, url, body, params) {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  const opts = {
+    method,
+    headers: { Authorization: 'Bearer ' + gdriveToken },
+  };
+  if (body instanceof FormData) { opts.body = body; }
+  else if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const r = await fetch(url + qs, opts);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function gdriveFindFile() {
+  if (gdriveFileId) return gdriveFileId;
+  const res = await gdriveRequest('GET', 'https://www.googleapis.com/drive/v3/files', null, {
+    q: `name='${GDRIVE_FILE_NAME}' and trashed=false`,
+    fields: 'files(id,name)',
+    spaces: 'drive',
+  });
+  gdriveFileId = res.files?.[0]?.id || null;
+  return gdriveFileId;
+}
+
+async function saveToDrive() {
+  if (!gdriveToken) { toast('Sign in to Google Drive first', 'err'); return; }
+  try {
+    driveStatus('saving…', 'var(--warn)');
+    const content = JSON.stringify({ updated_at: new Date().toISOString(), trades: rawTrades, balances: rawBalances });
+    const blob = new Blob([content], { type: 'application/json' });
+    const fileId = await gdriveFindFile();
+    if (fileId) {
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify({ name: GDRIVE_FILE_NAME })], { type: 'application/json' }));
+      form.append('file', blob);
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + gdriveToken },
+        body: form,
+      });
+    } else {
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify({ name: GDRIVE_FILE_NAME, mimeType: 'application/json' })], { type: 'application/json' }));
+      form.append('file', blob);
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + gdriveToken },
+        body: form,
+      });
+      const j = await res.json();
+      gdriveFileId = j.id;
+    }
+    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    driveStatus(`saved ${ts}`, 'var(--pos)');
+    toast(`Saved ${rawTrades.length} trades to Google Drive`, 'ok');
+  } catch (err) {
+    driveStatus('save failed', 'var(--neg)');
+    toast('Drive save failed: ' + err.message, 'err');
+  }
+}
+
+async function loadFromDrive() {
+  if (!gdriveToken) { toast('Sign in to Google Drive first', 'err'); return; }
+  try {
+    driveStatus('loading…', 'var(--warn)');
+    const fileId = await gdriveFindFile();
+    if (!fileId) { driveStatus('no file yet', 'var(--text2)'); toast('No Drive file found — import a CSV to create one', 'info'); return; }
+    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: { Authorization: 'Bearer ' + gdriveToken },
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    rawTrades = sanitizeStoredTrades(Array.isArray(data.trades) ? data.trades : []);
+    rawBalances = Array.isArray(data.balances) ? data.balances : [];
+    localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
+    localStorage.setItem('tickeros_balances', JSON.stringify(rawBalances));
+    document.getElementById('clear-btn').disabled = rawTrades.length === 0;
+    renderDashboard();
+    showTab('dashboard');
+    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    driveStatus(`loaded ${ts}`, 'var(--pos)');
+    toast(`Loaded ${rawTrades.length} trades from Google Drive`, 'ok');
+  } catch (err) {
+    driveStatus('load failed', 'var(--neg)');
+    toast('Drive load failed: ' + err.message, 'err');
+  }
+}
+
+function saveToServer() { saveToDrive(); }
 </script>
 </body>
 </html>
