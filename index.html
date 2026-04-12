@@ -689,6 +689,25 @@ tbody td{padding:10px 14px;color:var(--text2);white-space:nowrap}
           </label>
         </div>
         <div id="drive-sync-status" style="font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-bottom:12px;">Drive: not connected</div>
+        
+        <!-- Schwab Import Section -->
+        <div class="chart-panel mb2" style="border-color:var(--warn);">
+          <div class="chart-header"><span class="chart-title">📊 Schwab Account Import</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;">
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <label for="schwab-income-file" class="btn btn-outline" style="text-align:center;cursor:pointer;">📥 Import Investment Income CSV</label>
+              <input type="file" id="schwab-income-file" accept=".csv" style="display:none;">
+              <small style="color:var(--text2);font-size:10px;">Imports dividend, interest, distributions</small>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <label for="schwab-positions-file" class="btn btn-outline" style="text-align:center;cursor:pointer;">📥 Import Positions CSV</label>
+              <input type="file" id="schwab-positions-file" accept=".csv" style="display:none;">
+              <small style="color:var(--text2);font-size:10px;">Backfills cost basis for holdings</small>
+            </div>
+          </div>
+          <div id="schwab-import-status" style="font-size:11px;color:var(--text2);padding:0 12px 12px;font-family:monospace;min-height:20px;"></div>
+        </div>
+        
         <div id="mapping-section" class="chart-panel hidden mb2">
           <div class="chart-header"><span class="chart-title">Column Mapping</span></div>
           <div class="mapping-grid">
@@ -2424,6 +2443,203 @@ async function loadFromDrive() {
 }
 
 function saveToServer() { saveToDrive(); }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCHWAB CSV IMPORT (Income & Positions)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function parseSchwabIncome(csvText) {
+  const lines = csvText.trim().split('\n');
+  // Skip title + blank + header row
+  const headerIdx = lines.findIndex(l => l.includes('Transaction Date'));
+  if (headerIdx < 0) return [];
+  
+  const headers = lines[headerIdx].split(',').map(h => h.trim().replace(/"/g, ''));
+  const records = [];
+  
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const parts = lines[i].match(/("([^"]|"")*"|[^,]*)/g) || [];
+    const row = parts.map(p => p.replace(/"/g, '').trim());
+    
+    if (!row[0]) continue; // Skip empty rows
+    
+    const record = {};
+    headers.forEach((h, idx) => record[h] = row[idx] || '');
+    
+    const date = record['Transaction Date']?.slice(0, 10); // Extract YYYY-MM-DD
+    const symbol = record['Symbol']?.trim();
+    const amount = parseFloat(record['Transaction Amount'] || 0);
+    const type = record['Transaction Type']?.trim();
+    
+    if (date && symbol && symbol !== 'NO NUMBER' && amount) {
+      records.push({ date, symbol, amount, type });
+    }
+  }
+  return records;
+}
+
+function importSchwabIncome() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.csv';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const income = parseSchwabIncome(ev.target.result);
+        if (!income.length) { toast('No income transactions found', 'err'); return; }
+        
+        // Merge into app (store for reference)
+        rawIncome = income;
+        localStorage.setItem('tickeros_income', JSON.stringify(income));
+        
+        // Add to dashboard as informational overlay
+        const totalIncome = income.reduce((s, r) => s + r.amount, 0);
+        el('schwab-import-status').innerHTML = `✓ Imported ${income.length} income records (Total: $${totalIncome.toFixed(2)})`;
+        
+        toast(`Imported ${income.length} income transactions ($${totalIncome.toFixed(2)})`, 'ok');
+        renderDashboard();
+      } catch (err) {
+        toast('Failed to parse income CSV: ' + err.message, 'err');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function parseSchwabPositions(csvText) {
+  const lines = csvText.trim().split('\n');
+  const headerIdx = lines.findIndex(l => l.includes('Symbol'));
+  if (headerIdx < 0) return {};
+  
+  const headers = lines[headerIdx].split(',').map(h => h.trim().replace(/"/g, ''));
+  const positions = {};
+  
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const parts = lines[i].match(/("([^"]|"")*"|[^,]*)/g) || [];
+    const row = parts.map(p => p.replace(/"/g, '').trim());
+    
+    if (!row[0] || row[0].includes('Positions Total')) continue;
+    
+    const row_obj = {};
+    headers.forEach((h, idx) => row_obj[h] = row[idx] || '');
+    
+    const symbol = row_obj['Symbol']?.trim();
+    const costBasis = parseFloat(row_obj['Cost Basis']?.replace(/[\$,]/g, '') || 0);
+    const qty = parseFloat(row_obj['Qty (Quantity)'] || 0);
+    const costShare = parseFloat(row_obj['Cost/Share']?.replace(/[\$,]/g, '') || 0);
+    
+    if (symbol && symbol !== 'Cash' && costBasis > 0) {
+      positions[symbol] = { costBasis, qty, costShare };
+    }
+  }
+  return positions;
+}
+
+function importSchwabPositions() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.csv';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const positions = parseSchwabPositions(ev.target.result);
+        const keys = Object.keys(positions);
+        if (!keys.length) { toast('No positions found', 'err'); return; }
+        
+        // Backfill trades with cost basis from positions
+        let updated = 0;
+        for (const trade of rawTrades) {
+          if (trade.symbol && positions[trade.symbol]) {
+            const pos = positions[trade.symbol];
+            if (!trade.costBasis || trade.costBasis === 0) {
+              trade.costBasis = pos.costBasis;
+              updated++;
+            }
+          }
+        }
+        
+        localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
+        el('schwab-import-status').innerHTML += `<br>✓ Backfilled ${updated} trades with cost basis`;
+        
+        toast(`Imported cost basis for ${keys.length} symbols, updated ${updated} trades`, 'ok');
+        renderDashboard();
+      } catch (err) {
+        toast('Failed to parse positions CSV: ' + err.message, 'err');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// Attach event listeners
+if (document.getElementById('schwab-income-file')) {
+  document.getElementById('schwab-income-file').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const income = parseSchwabIncome(ev.target.result);
+        if (!income.length) { toast('No income transactions found', 'err'); return; }
+        
+        rawIncome = income;
+        localStorage.setItem('tickeros_income', JSON.stringify(income));
+        
+        const totalIncome = income.reduce((s, r) => s + r.amount, 0);
+        el('schwab-import-status').innerHTML = `✓ Imported ${income.length} income records (Total: $${totalIncome.toFixed(2)})`;
+        
+        toast(`Imported ${income.length} income transactions ($${totalIncome.toFixed(2)})`, 'ok');
+        renderDashboard();
+      } catch (err) {
+        toast('Failed to parse income CSV: ' + err.message, 'err');
+      }
+    };
+    reader.readAsText(file);
+  }, false);
+}
+
+if (document.getElementById('schwab-positions-file')) {
+  document.getElementById('schwab-positions-file').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const positions = parseSchwabPositions(ev.target.result);
+        const keys = Object.keys(positions);
+        if (!keys.length) { toast('No positions found', 'err'); return; }
+        
+        let updated = 0;
+        for (const trade of rawTrades) {
+          if (trade.symbol && positions[trade.symbol]) {
+            const pos = positions[trade.symbol];
+            if (!trade.costBasis || trade.costBasis === 0) {
+              trade.costBasis = pos.costBasis;
+              updated++;
+            }
+          }
+        }
+        
+        localStorage.setItem('tickeros_trades', JSON.stringify(rawTrades));
+        el('schwab-import-status').innerHTML += `<br>✓ Backfilled ${updated} trades with cost basis`;
+        
+        toast(`Imported cost basis for ${keys.length} symbols, updated ${updated} trades`, 'ok');
+        renderDashboard();
+      } catch (err) {
+        toast('Failed to parse positions CSV: ' + err.message, 'err');
+      }
+    };
+    reader.readAsText(file);
+  }, false);
+}
 </script>
 </body>
 </html>
